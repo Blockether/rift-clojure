@@ -43,7 +43,21 @@ defaulting to `--illegal-native-access=deny` would refuse to load the library).
 ```
 
 Every fn takes an optional `:database` to point at a specific SQLite registry
-instead of the default (handy for per-repo isolation and tests).
+(rift's metadata store) instead of rift's built-in default
+(`~/Library/Application Support/rift/rift.sqlite` on macOS,
+`~/.local/share/rift/rift.sqlite` on Linux). To avoid repeating it, set a
+default once:
+
+```clojure
+(rift/set-default-database! "/path/to/.vis/rift.sqlite")  ; process-wide
+(rift/create {:from "/repo"})                             ; no :database needed
+
+(rift/with-database "/tmp/test.sqlite"                    ; scoped override
+  (rift/list {:of "/repo"}))
+```
+
+Precedence: explicit `:database` arg > `with-database` scope >
+`set-default-database!` root > rift's built-in default.
 
 Errors surface as `ex-info` with `{:type :rift/error :code <string> :path <string?>}`,
 mirroring rift's failure codes (`cow_unavailable`, `workspace_not_initialized`,

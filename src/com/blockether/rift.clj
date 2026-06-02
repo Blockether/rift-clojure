@@ -77,7 +77,7 @@
                 (throw (ex-info (str "No bundled rift library for " os "-" arch
                                   " (missing classpath resource " res ")")
                          {:os os :arch arch :resource res})))]
-    (if (= "file" (.getProtocol url))
+    (if (= "file" (.getProtocol ^java.net.URL url))
       (.toPath (io/file url))
       (let [tmp (doto (File/createTempFile "librift_ffi" (subs fname (.lastIndexOf ^String fname ".")))
                   .deleteOnExit)]
@@ -153,6 +153,47 @@
 (defn- here [] (System/getProperty "user.dir"))
 
 ;; ---------------------------------------------------------------------------
+;; Default registry (so callers don't repeat :database everywhere)
+;; ---------------------------------------------------------------------------
+
+(def ^:dynamic *database*
+  "Default rift registry (SQLite) path used whenever a call omits `:database`.
+   `nil` ⇒ rift's own default (`dirs::data_local_dir()/rift/rift.sqlite`).
+
+   Precedence, highest first:
+     1. an explicit `:database` on the call,
+     2. a `(with-database path …)` scope,
+     3. this var's root value (set once via `set-default-database!`),
+     4. rift's built-in default."
+  nil)
+
+(defn set-default-database!
+  "Set the process-wide default registry path (the root value of `*database*`),
+   so every later call uses it without passing `:database`. Pass `nil` to
+   revert to rift's built-in default. Returns the path."
+  [path]
+  (alter-var-root #'*database* (constantly (s path)))
+  path)
+
+(defmacro with-database
+  "Evaluate `body` with `*database*` bound to `path` (a scoped default that
+   wins over `set-default-database!` but not over an explicit per-call
+   `:database`)."
+  [path & body]
+  ;; Inline the coercion (don't call the private `s`) so the expansion is legal
+  ;; at any call site.
+  `(binding [*database* (some-> ~path str)] ~@body))
+
+(defn- add-db
+  "Attach the resolved registry path to a request map: explicit `database`
+   first, else the current `*database*`. Omitted entirely when neither is set
+   (rift falls back to its own default)."
+  [request database]
+  (if-let [d (or (s database) *database*)]
+    (assoc request :database d)
+    request))
+
+;; ---------------------------------------------------------------------------
 ;; Public API — mirrors the rift-snapshot JS surface
 ;; ---------------------------------------------------------------------------
 
@@ -161,11 +202,10 @@
    this converts an ordinary btrfs directory into a subvolume; on macOS it
    registers the source directory for APFS clonefile. Returns nil.
 
-   Options: `:at`, `:database` (override the SQLite registry path)."
+   Options: `:at`, `:database` (defaults to `*database*`)."
   ([] (init {}))
   ([{:keys [at database]}]
-   (call* (cond-> {:command "init" :at (s (or at (here)))}
-            database (assoc :database (s database))))
+   (call* (add-db {:command "init" :at (s (or at (here)))} database))
    nil))
 
 (defn create
@@ -176,10 +216,10 @@
    Options: `:from`, `:name`, `:into` (parent storage dir), `:database`."
   ([] (create {}))
   ([{:keys [from name into database]}]
-   (call* (cond-> {:command "create" :from (s (or from (here)))}
-            name     (assoc :name (s name))
-            into     (assoc :into (s into))
-            database (assoc :database (s database))))))
+   (call* (-> {:command "create" :from (s (or from (here)))}
+            (cond-> name (assoc :name (s name))
+                    into (assoc :into (s into)))
+            (add-db database)))))
 
 (defn remove!
   "Remove a created workspace at `:at` (default: current dir). With `:all true`
@@ -190,9 +230,9 @@
    Options: `:at`, `:all`, `:database`."
   ([] (remove! {}))
   ([{:keys [at all database]}]
-   (let [v (call* (cond-> {:command "remove" :at (s (or at (here)))}
-                    (some? all) (assoc :all (boolean all))
-                    database    (assoc :database (s database))))]
+   (let [v (call* (-> {:command "remove" :at (s (or at (here)))}
+                    (cond-> (some? all) (assoc :all (boolean all)))
+                    (add-db database)))]
      (when all (vec v)))))
 
 (defn list
@@ -200,21 +240,18 @@
    Returns a vector of paths. Options: `:of`, `:database`."
   ([] (list {}))
   ([{:keys [of database]}]
-   (vec (call* (cond-> {:command "list" :of (s (or of (here)))}
-                 database (assoc :database (s database)))))))
+   (vec (call* (add-db {:command "list" :of (s (or of (here)))} database)))))
 
 (defn ancestors
   "List ancestor workspaces of `:of` (default: current dir), nearest first.
    Returns a vector of paths. Options: `:of`, `:database`."
   ([] (ancestors {}))
   ([{:keys [of database]}]
-   (vec (call* (cond-> {:command "ancestors" :of (s (or of (here)))}
-                 database (assoc :database (s database)))))))
+   (vec (call* (add-db {:command "ancestors" :of (s (or of (here)))} database)))))
 
 (defn gc
   "Physically delete trashed storage and prune missing registry entries.
    Returns a vector of collected paths. Options: `:database`."
   ([] (gc {}))
   ([{:keys [database]}]
-   (vec (call* (cond-> {:command "gc"}
-                 database (assoc :database (s database)))))))
+   (vec (call* (add-db {:command "gc"} database)))))

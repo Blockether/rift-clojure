@@ -67,3 +67,36 @@
           "ancestors returns a vector for the created workspace")
         (rift/remove! {:at ws :database (str db)})
         (is (vector? (rift/gc {:database (str db)})) "gc returns collected paths")))))
+
+(deftest database-precedence
+  (testing "*database* default resolution: scope > root, explicit always wins"
+    (is (nil? rift/*database*) "defaults to nil (rift's own default)")
+    (rift/with-database "/tmp/scoped.sqlite"
+      (is (= "/tmp/scoped.sqlite" rift/*database*) "with-database binds the scope"))
+    (is (nil? rift/*database*) "scope is restored after with-database")
+    (try
+      (rift/set-default-database! "/tmp/root.sqlite")
+      (is (= "/tmp/root.sqlite" rift/*database*) "set-default-database! sets the root")
+      (rift/with-database "/tmp/scoped.sqlite"
+        (is (= "/tmp/scoped.sqlite" rift/*database*) "scope wins over root"))
+      (finally
+        (rift/set-default-database! nil)))
+    (is (nil? rift/*database*) "root reverts to nil")))
+
+(deftest default-database-roundtrip
+  (testing "real rift: create/list/remove run with NO per-call :database under with-database"
+    (let [src (temp-dir "rift-dflt-src")
+          db  (io/file (temp-dir "rift-dflt-reg") "registry.sqlite")]
+      (sh/sh "git" "init" "-q" :dir src)
+      (spit (io/file src "README.md") "default db\n")
+      (sh/sh "git" "add" "-A" :dir src)
+      (sh/sh "git" "-c" "user.email=t@t" "-c" "user.name=t" "commit" "-qm" "init" :dir src)
+      (rift/with-database (str db)
+        (rift/init {:at (str src)})
+        (let [ws (rift/create {:from (str src) :name "dflt"})]
+          (println "  ✓ real rift create via default *database* at:" ws)
+          (is (string? ws) "create works with the ambient default db")
+          (is (some #{ws} (rift/list {:of (str src)}))
+            "list works without :database, using the same default")
+          (rift/remove! {:at ws})
+          (is (vector? (rift/gc)) "gc works without :database"))))))
