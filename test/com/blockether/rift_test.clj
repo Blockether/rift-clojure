@@ -14,12 +14,28 @@
     ;; Listing an uninitialized directory makes rift return a structured
     ;; error. Catching it here proves the whole FFM path works: dylib loaded,
     ;; JSON request marshalled in, rift executed, JSON error marshalled back
-    ;; out and parsed into ex-info — independent of any CoW filesystem.
+    ;; out and parsed into ex-info — independent of any CoW filesystem, so it
+    ;; gates every platform (incl. ext4 CI runners).
     (let [db (io/file (temp-dir "rift-db") "registry.sqlite")
           e  (is (thrown? clojure.lang.ExceptionInfo
-                   (rift/list {:of (str (temp-dir "rift-empty")) :database (str db)})))]
-      (is (= :rift/error (:type (ex-data e))))
-      (is (string? (:code (ex-data e)))))))
+                   (rift/list {:of (str (temp-dir "rift-empty")) :database (str db)})))
+          d  (ex-data e)]
+      (is (= :rift/error (:type d)) "errors carry the :rift/error type")
+      (is (= "workspace_not_initialized" (:code d))
+        "rift's error code is preserved through the binding")
+      (is (string? (ex-message e)) "error has a human message"))))
+
+(deftest unknown-database-path-is-isolated
+  (testing "a per-call :database keeps registries isolated (no shared state)"
+    ;; Two distinct databases must not see each other's roots. Both calls hit
+    ;; the native lib; this also exercises the :database option marshalling.
+    (let [db1 (io/file (temp-dir "rift-db1") "a.sqlite")
+          db2 (io/file (temp-dir "rift-db2") "b.sqlite")
+          dir (temp-dir "rift-iso")]
+      (is (thrown? clojure.lang.ExceptionInfo
+            (rift/list {:of (str dir) :database (str db1)})))
+      (is (thrown? clojure.lang.ExceptionInfo
+            (rift/list {:of (str dir) :database (str db2)}))))))
 
 (deftest roundtrip
   (testing "init -> create -> list -> remove -> gc against a temp git repo"
@@ -39,6 +55,8 @@
           (is (.exists (io/file ws "README.md")) "working-tree state is retained")
           (is (some #{ws} (rift/list {:of (str src) :database (str db)}))
             "the new workspace appears in the child list")
+          (is (vector? (rift/ancestors {:of ws :database (str db)}))
+            "ancestors returns a vector for a created workspace")
           (rift/remove! {:at ws :database (str db)})
           (is (vector? (rift/gc {:database (str db)})) "gc returns collected paths"))
         (catch clojure.lang.ExceptionInfo e

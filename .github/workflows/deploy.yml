@@ -15,12 +15,15 @@ env:
 jobs:
   # ---------------------------------------------------------------------------
   # Build librift_ffi for every platform on a NATIVE runner (no qemu / no
-  # cross-linker). Each job uploads its single library as an artifact; the
-  # release job collects them and bundles them into the published jar. Nothing
-  # is committed back to the repo.
+  # cross-linker) AND run the Clojure binding test against the freshly-built
+  # library on that same platform. fail-fast aborts the whole release if any
+  # platform fails, and the `release` job has `needs: natives` — so NOTHING is
+  # deployed to Clojars unless all four platforms built and tested green.
+  # Each job uploads its validated library; the release job bundles them into
+  # the published jar. Nothing is committed back to the repo.
   # ---------------------------------------------------------------------------
   natives:
-    name: native ${{ matrix.name }}
+    name: build + test ${{ matrix.name }}
     strategy:
       fail-fast: true
       matrix:
@@ -31,11 +34,15 @@ jobs:
           - { name: darwin-arm64, os: macos-14,         target: aarch64-apple-darwin,      lib: librift_ffi.dylib }
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Checkout rift-clojure
+        uses: actions/checkout@v4
+
       - name: Checkout rift source (${{ env.RIFT_REF }})
         uses: actions/checkout@v4
         with:
           repository: anomalyco/rift
           ref: ${{ env.RIFT_REF }}
+          path: rift-src
 
       - name: Install cmake (Linux)
         if: runner.os == 'Linux'
@@ -51,13 +58,47 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build rift-ffi (release, cdylib)
+        working-directory: rift-src
         run: cargo build --release -p rift-ffi --target ${{ matrix.target }}
 
-      - name: Upload library artifact
+      - name: Stage library
+        run: |
+          mkdir -p resources/prebuilds/${{ matrix.name }}
+          cp "rift-src/target/${{ matrix.target }}/release/${{ matrix.lib }}" \
+             "resources/prebuilds/${{ matrix.name }}/${{ matrix.lib }}"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: DeLaGuardo/setup-clojure@13.5
+        with:
+          cli: latest
+
+      - name: Cache Clojure deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.clojure/.cpcache
+          key: deps-${{ runner.os }}-${{ hashFiles('deps.edn') }}
+          restore-keys: |
+            deps-${{ runner.os }}-
+
+      # GATE: validate THIS platform's library before it can be published.
+      # macOS runners exercise the full APFS copy-on-write round-trip; ext4
+      # Linux runners exercise the structured-error path. Both prove the FFM
+      # binding marshals correctly against the native lib for this platform.
+      - name: Run binding tests (gates the release)
+        run: clojure -X:test
+
+      - name: Upload validated library artifact
         uses: actions/upload-artifact@v4
         with:
           name: prebuild-${{ matrix.name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.lib }}
+          path: resources/prebuilds/${{ matrix.name }}/${{ matrix.lib }}
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
