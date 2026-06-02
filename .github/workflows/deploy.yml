@@ -102,12 +102,10 @@ jobs:
           echo "RIFT_TMPDIR=/mnt/rift-btrfs" >> "$GITHUB_ENV"
 
       # GATE: validate THIS platform's library against REAL rift before it can
-      # be published. RIFT_TEST_REQUIRE_COW makes the full copy-on-write
-      # round-trip mandatory on every platform (macOS APFS, Linux btrfs) — no
-      # lenient fallback. A failure here aborts the whole release.
+      # be published. The full copy-on-write round-trip is mandatory on every
+      # platform (macOS APFS, Linux btrfs) — no lenient fallback. A failure
+      # here aborts the whole release.
       - name: Run binding tests against real rift (gates the release)
-        env:
-          RIFT_TEST_REQUIRE_COW: "1"
         run: clojure ${RIFT_TMPDIR:+-J-Djava.io.tmpdir=$RIFT_TMPDIR} -X:test
 
       - name: Upload validated library artifact

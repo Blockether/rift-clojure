@@ -78,8 +78,6 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" /mnt/rift-btrfs
 
       - name: Run tests against real rift (real CoW mandatory)
-        env:
-          RIFT_TEST_REQUIRE_COW: "1"
         run: clojure -J-Djava.io.tmpdir=/mnt/rift-btrfs -X:test
 
       - name: Build jar
