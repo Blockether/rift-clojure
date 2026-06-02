@@ -58,7 +58,6 @@ Errors are `ex-info` with `{:type :rift/error :code <string> :path <string?>}`
 | Platform       | Library             | Backend          |
 | -------------- | ------------------- | ---------------- |
 | `darwin-arm64` | `librift_ffi.dylib` | APFS `clonefile` |
-| `darwin-x64`   | `librift_ffi.dylib` | APFS `clonefile` |
 | `linux-x64`    | `librift_ffi.so`    | btrfs snapshots  |
 | `linux-arm64`  | `librift_ffi.so`    | btrfs snapshots  |
 
