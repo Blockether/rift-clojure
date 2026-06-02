@@ -63,14 +63,6 @@ Errors are `ex-info` with `{:type :rift/error :code <string> :path <string?>}`
 
 Linux CoW requires a **btrfs** filesystem.
 
-## Native libraries
-
-Built from rift's `crates/ffi` at the release tag, on native GitHub runners, and
-bundled into the published jar — **never committed**. `deploy.yml` builds every
-platform on each `v*` tag and publishes to Clojars; `ci.yml` builds + tests each
-platform on push/PR. Locally, `scripts/build-natives.sh` populates the
-git-ignored `resources/prebuilds/`.
-
 ## Develop
 
 ```
