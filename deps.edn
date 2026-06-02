@@ -1,0 +1,29 @@
+;; rift-clojure — Clojure binding to rift (copy-on-write workspaces) via the
+;; JDK Foreign Function & Memory API. ONE namespace: com.blockether.rift.
+;;
+;; The prebuilt native libraries live under resources/prebuilds/<os>-<arch>/
+;; and ship inside the jar. Consumers must run the JVM with
+;;   --enable-native-access=ALL-UNNAMED
+;; so the foreign linker may load the library without a restricted-method
+;; warning.
+{:paths ["src" "resources"]
+
+ :deps
+ {;; charred — fast JSON, the rift FFI wire format. Same version vis uses.
+  com.cnuernber/charred {:mvn/version "1.038"}}
+
+ :aliases
+ {:build
+  {:deps      {io.github.clojure/tools.build {:mvn/version "0.10.6"}
+               slipset/deps-deploy           {:mvn/version "0.2.2"}}
+   :ns-default build}
+
+  :test
+  {:extra-paths ["test"]
+   :extra-deps  {io.github.cognitect-labs/test-runner
+                 {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+   :main-opts   ["-m" "cognitect.test-runner"]
+   :exec-fn     cognitect.test-runner.api/test
+   ;; FFM native calls are a restricted operation; opt in here so tests don't
+   ;; warn. Production consumers (e.g. vis) pass the same flag.
+   :jvm-opts    ["--enable-native-access=ALL-UNNAMED"]}}}

@@ -1,0 +1,12 @@
+/target/
+/.cpcache/
+/.clj-kondo/.cache/
+/.lsp/.cache/
+*.jar
+.DS_Store
+/rift-src/
+
+# Native libraries are NOT committed. CI (deploy.yml) builds them per-platform
+# on native runners and bundles them into the published Clojars jar. For local
+# development, run scripts/build-natives.sh to populate this directory.
+/resources/prebuilds/
