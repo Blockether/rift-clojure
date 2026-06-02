@@ -10,14 +10,26 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build-and-test:
+    name: build + test ${{ matrix.name }}
+    strategy:
+      # CI: run every platform to completion so you see all results (deploy
+      # uses fail-fast to abort the release on the first failure).
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x64,    os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  lib: librift_ffi.so }
+          - { name: linux-arm64,  os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, lib: librift_ffi.so }
+          - { name: darwin-x64,   os: macos-13,         target: x86_64-apple-darwin,       lib: librift_ffi.dylib }
+          - { name: darwin-arm64, os: macos-14,         target: aarch64-apple-darwin,      lib: librift_ffi.dylib }
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
 
       # Vendored binding: the rift ref is whatever version we vendor.
       - name: Derive rift ref from resources/VERSION
+        shell: bash
         run: echo "RIFT_REF=v$(tr -d '[:space:]' < resources/VERSION)" >> "$GITHUB_ENV"
 
       - name: Checkout rift source (${{ env.RIFT_REF }})
@@ -27,23 +39,28 @@ jobs:
           ref: ${{ env.RIFT_REF }}
           path: rift-src
 
-      - name: Install cmake (libgit2-sys + bundled sqlite)
+      - name: Install cmake (Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y cmake
+
+      - name: Install cmake (macOS)
+        if: runner.os == 'macOS'
+        run: brew list cmake >/dev/null 2>&1 || brew install cmake
 
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      # Native libs are not committed; build the runner's lib so the binding
-      # test has something to load. On ext4 the round-trip test falls back to
-      # asserting the structured-error path — still exercises the FFM call.
-      - name: Build native lib (linux-x64)
+      - name: Build rift-ffi (release, cdylib)
         working-directory: rift-src
-        run: cargo build --release -p rift-ffi
+        run: cargo build --release -p rift-ffi --target ${{ matrix.target }}
 
-      - name: Place lib for tests
+      - name: Stage library
         run: |
-          mkdir -p resources/prebuilds/linux-x64
-          cp rift-src/target/release/librift_ffi.so resources/prebuilds/linux-x64/
+          mkdir -p resources/prebuilds/${{ matrix.name }}
+          cp "rift-src/target/${{ matrix.target }}/release/${{ matrix.lib }}" \
+             "resources/prebuilds/${{ matrix.name }}/${{ matrix.lib }}"
 
       - uses: actions/setup-java@v4
         with:
@@ -61,14 +78,15 @@ jobs:
             ~/.m2/repository
             ~/.gitlibs
             ~/.clojure/.cpcache
-          key: deps-${{ runner.os }}-${{ hashFiles('deps.edn') }}
+          key: deps-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('deps.edn') }}
           restore-keys: |
             deps-${{ runner.os }}-
 
-      # rift's Linux CoW backend is btrfs; GitHub runners are ext4. Provision a
-      # btrfs loopback filesystem and point java.io.tmpdir at it so the test's
-      # real create -> snapshot -> remove round-trip runs for real on Linux.
-      - name: Provision btrfs for real CoW
+      # rift's Linux CoW backend is btrfs; GitHub Linux runners are ext4.
+      # Provision a btrfs loopback FS and point java.io.tmpdir at it so the
+      # real CoW round-trip runs on Linux too (macOS APFS already supports it).
+      - name: Provision btrfs for real CoW (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get install -y -qq btrfs-progs
           truncate -s 3G /tmp/rift-btrfs.img
@@ -76,9 +94,11 @@ jobs:
           sudo mkdir -p /mnt/rift-btrfs
           sudo mount -o loop /tmp/rift-btrfs.img /mnt/rift-btrfs
           sudo chown -R "$(id -u):$(id -g)" /mnt/rift-btrfs
+          echo "RIFT_TMPDIR=/mnt/rift-btrfs" >> "$GITHUB_ENV"
 
       - name: Run tests against real rift (real CoW mandatory)
-        run: clojure -J-Djava.io.tmpdir=/mnt/rift-btrfs -X:test
+        shell: bash
+        run: clojure ${RIFT_TMPDIR:+-J-Djava.io.tmpdir=$RIFT_TMPDIR} -X:test
 
       - name: Build jar
         run: clojure -T:build jar

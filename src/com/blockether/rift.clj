@@ -153,18 +153,54 @@
 (defn- here [] (System/getProperty "user.dir"))
 
 ;; ---------------------------------------------------------------------------
+;; Platform-default registry location
+;; ---------------------------------------------------------------------------
+
+(defn- data-local-dir
+  "Per-OS local data directory, matching the Rust `dirs` crate that rift uses
+   for its own default — so the path we resolve points at the SAME registry
+   rift would pick. Honours the platform's env overrides:
+     - macOS:   ~/Library/Application Support
+     - Windows: %LOCALAPPDATA%        (else ~/AppData/Local)
+     - Linux:   $XDG_DATA_HOME        (else ~/.local/share)"
+  ^java.io.File []
+  (let [os   (.toLowerCase ^String (System/getProperty "os.name"))
+        home (System/getProperty "user.home")
+        env  (fn [k] (not-empty (System/getenv k)))]
+    (cond
+      (or (.contains os "mac") (.contains os "darwin"))
+      (io/file home "Library" "Application Support")
+
+      (.contains os "win")
+      (io/file (or (env "LOCALAPPDATA") (str (io/file home "AppData" "Local"))))
+
+      :else
+      (io/file (or (env "XDG_DATA_HOME") (str (io/file home ".local" "share")))))))
+
+(defn default-database
+  "The platform-default rift registry (SQLite) path — the same one rift would
+   choose when no `:database` is given (`dirs::data_local_dir()/rift/rift.sqlite`):
+     - macOS:   ~/Library/Application Support/rift/rift.sqlite
+     - Windows: %LOCALAPPDATA%\\rift\\rift.sqlite
+     - Linux:   $XDG_DATA_HOME/rift/rift.sqlite  (else ~/.local/share/…)"
+  ^String []
+  (str (io/file (data-local-dir) "rift" "rift.sqlite")))
+
+;; ---------------------------------------------------------------------------
 ;; Default registry (so callers don't repeat :database everywhere)
 ;; ---------------------------------------------------------------------------
 
 (def ^:dynamic *database*
-  "Default rift registry (SQLite) path used whenever a call omits `:database`.
-   `nil` ⇒ rift's own default (`dirs::data_local_dir()/rift/rift.sqlite`).
+  "Override for the rift registry (SQLite) path used when a call omits
+   `:database`. `nil` ⇒ fall back to the platform default (`default-database`),
+   which is always resolved and passed explicitly — so the default is honoured
+   on every platform, never left to chance.
 
    Precedence, highest first:
      1. an explicit `:database` on the call,
      2. a `(with-database path …)` scope,
      3. this var's root value (set once via `set-default-database!`),
-     4. rift's built-in default."
+     4. the platform default (`(default-database)`)."
   nil)
 
 (defn set-default-database!
@@ -184,14 +220,24 @@
   ;; at any call site.
   `(binding [*database* (some-> ~path str)] ~@body))
 
+(defn- ensure-parent!
+  "Make sure `path`'s parent directory exists, then return `path`. rift's
+   `Manager::open` (the code path hit whenever we pass an explicit database)
+   does NOT create the parent dir — only `open_default` does — so we create it
+   to keep first-run working regardless of which registry path is used."
+  ^String [^String path]
+  (when-let [parent (.getParentFile (io/file path))]
+    (.mkdirs parent))
+  path)
+
 (defn- add-db
-  "Attach the resolved registry path to a request map: explicit `database`
-   first, else the current `*database*`. Omitted entirely when neither is set
-   (rift falls back to its own default)."
+  "Attach the resolved registry path to a request: explicit `database`, else
+   the `*database*` override, else the platform `default-database`. Always
+   resolves to a concrete path (so the per-OS default is honoured) and ensures
+   its parent directory exists."
   [request database]
-  (if-let [d (or (s database) *database*)]
-    (assoc request :database d)
-    request))
+  (assoc request :database
+    (ensure-parent! (or (s database) *database* (default-database)))))
 
 ;; ---------------------------------------------------------------------------
 ;; Public API — mirrors the rift-snapshot JS surface

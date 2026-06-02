@@ -9,6 +9,7 @@
    deploy."
   (:require [clojure.java.io :as io]
             [clojure.java.shell :as sh]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [com.blockether.rift :as rift])
   (:import [java.nio.file Files]
@@ -100,3 +101,26 @@
             "list works without :database, using the same default")
           (rift/remove! {:at ws})
           (is (vector? (rift/gc)) "gc works without :database"))))))
+
+(deftest platform-default-database
+  (testing "default-database resolves a per-OS path ending in rift/rift.sqlite"
+    ;; Pure — does NOT call rift, so it never creates/pollutes the real registry.
+    (let [p   (rift/default-database)
+          os  (.toLowerCase (System/getProperty "os.name"))
+          tail (str (io/file "rift" "rift.sqlite"))]   ; rift/rift.sqlite | rift\rift.sqlite
+      (is (string? p))
+      (is (str/ends-with? p tail) "ends with rift/rift.sqlite")
+      (cond
+        (or (str/includes? os "mac") (str/includes? os "darwin"))
+        (is (str/includes? p (str (io/file "Library" "Application Support")))
+          "macOS uses ~/Library/Application Support")
+
+        (str/includes? os "win")
+        (is (str/includes? (str/lower-case p) "appdata")
+          "Windows uses %LOCALAPPDATA%")
+
+        :else
+        (is (or (str/includes? p (str (io/file ".local" "share")))
+              (when-let [x (not-empty (System/getenv "XDG_DATA_HOME"))]
+                (str/includes? p x)))
+          "Linux uses $XDG_DATA_HOME or ~/.local/share")))))
