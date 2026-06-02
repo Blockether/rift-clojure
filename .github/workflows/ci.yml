@@ -51,6 +51,18 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      # Cache the Cargo registry + rift-ffi target dir so the cdylib does NOT
+      # cold-compile from scratch on every run. The cold release build of
+      # rift-ffi + all transitive crates is what ballooned the old Intel-mac
+      # (macos-13) job to ~14 min; a warm cache cuts subsequent builds to
+      # the incremental delta. Keyed per target + vendored rift ref so
+      # platforms and versions never share a cache.
+      - name: Cache Rust build (rift-ffi)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rift-src
+          key: ${{ matrix.target }}-${{ env.RIFT_REF }}
+
       - name: Build rift-ffi (release, cdylib)
         working-directory: rift-src
         run: cargo build --release -p rift-ffi --target ${{ matrix.target }}
