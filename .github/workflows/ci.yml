@@ -65,8 +65,22 @@ jobs:
           restore-keys: |
             deps-${{ runner.os }}-
 
-      - name: Run tests
-        run: clojure -X:test
+      # rift's Linux CoW backend is btrfs; GitHub runners are ext4. Provision a
+      # btrfs loopback filesystem and point java.io.tmpdir at it so the test's
+      # real create -> snapshot -> remove round-trip runs for real on Linux.
+      - name: Provision btrfs for real CoW
+        run: |
+          sudo apt-get install -y -qq btrfs-progs
+          truncate -s 3G /tmp/rift-btrfs.img
+          mkfs.btrfs -q /tmp/rift-btrfs.img
+          sudo mkdir -p /mnt/rift-btrfs
+          sudo mount -o loop /tmp/rift-btrfs.img /mnt/rift-btrfs
+          sudo chown -R "$(id -u):$(id -g)" /mnt/rift-btrfs
+
+      - name: Run tests against real rift (real CoW mandatory)
+        env:
+          RIFT_TEST_REQUIRE_COW: "1"
+        run: clojure -J-Djava.io.tmpdir=/mnt/rift-btrfs -X:test
 
       - name: Build jar
         run: clojure -T:build jar

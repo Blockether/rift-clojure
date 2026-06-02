@@ -26,12 +26,11 @@
   (:refer-clojure :exclude [list ancestors])
   (:require [charred.api :as json]
             [clojure.java.io :as io])
-  (:import [java.io InputStream]
+  (:import [java.io File]
            [java.lang.foreign Arena FunctionDescriptor Linker Linker$Option
             MemoryLayout MemorySegment SymbolLookup ValueLayout]
            [java.lang.invoke MethodHandle]
-           [java.nio.file CopyOption Files Path StandardCopyOption]
-           [java.nio.file.attribute FileAttribute]))
+           [java.nio.file Path]))
 
 (set! *warn-on-reflection* true)
 
@@ -62,26 +61,29 @@
     "linux"   "librift_ffi.so"
     "windows" "rift_ffi.dll"))
 
-(defn- extract-library!
-  "Copy the bundled library for the running platform out of the classpath into
-   a temp file and return its `Path`. The temp file is deleted on JVM exit."
+(defn- library-path
+  "Return a real filesystem `Path` to the bundled library for the running
+   platform. The OS dynamic linker (what FFM's `libraryLookup` calls) can only
+   open a real file — never bytes inside a jar — so:
+
+     - classpath `file:` URL (local dev / unpacked dir): use it directly, no copy;
+     - anything else (`jar:`, …): the linker can't read it, so extract to a
+       temp file (removed on JVM exit) and return that."
   ^Path []
   (let [[os arch] (platform)
-        fname     (lib-file-name os)
-        res       (str "prebuilds/" os "-" arch "/" fname)
-        url       (io/resource res)]
-    (when-not url
-      (throw (ex-info (str "No bundled rift library for " os "-" arch
-                        " (missing classpath resource " res ")")
-               {:os os :arch arch :resource res})))
-    (let [suffix (subs fname (.lastIndexOf ^String fname "."))
-          tmp    (Files/createTempFile "librift_ffi" suffix (make-array FileAttribute 0))]
-      (let [opts ^"[Ljava.nio.file.CopyOption;"
-            (into-array CopyOption [StandardCopyOption/REPLACE_EXISTING])]
-        (with-open [in ^InputStream (io/input-stream url)]
-          (Files/copy in ^Path tmp opts)))
-      (.deleteOnExit (.toFile tmp))
-      tmp)))
+        fname (lib-file-name os)
+        res   (str "prebuilds/" os "-" arch "/" fname)
+        url   (or (io/resource res)
+                (throw (ex-info (str "No bundled rift library for " os "-" arch
+                                  " (missing classpath resource " res ")")
+                         {:os os :arch arch :resource res})))]
+    (if (= "file" (.getProtocol url))
+      (.toPath (io/file url))
+      (let [tmp (doto (File/createTempFile "librift_ffi" (subs fname (.lastIndexOf ^String fname ".")))
+                  .deleteOnExit)]
+        (with-open [in (io/input-stream url)]
+          (io/copy in tmp))
+        (.toPath tmp)))))
 
 ;; ---------------------------------------------------------------------------
 ;; Native binding (lazy, process-lifetime)
@@ -93,7 +95,7 @@
   []
   (let [linker ^Linker (Linker/nativeLinker)
         arena  (Arena/ofShared)                ;; library stays mapped for the process
-        path   (extract-library!)
+        path   (library-path)
         lookup ^SymbolLookup (SymbolLookup/libraryLookup path arena)
         opts   (make-array Linker$Option 0)
         sym    (fn ^MemorySegment [name]

@@ -87,12 +87,28 @@ jobs:
           restore-keys: |
             deps-${{ runner.os }}-
 
-      # GATE: validate THIS platform's library before it can be published.
-      # macOS runners exercise the full APFS copy-on-write round-trip; ext4
-      # Linux runners exercise the structured-error path. Both prove the FFM
-      # binding marshals correctly against the native lib for this platform.
-      - name: Run binding tests (gates the release)
-        run: clojure -X:test
+      # rift's Linux CoW backend is btrfs; GitHub Linux runners are ext4.
+      # Provision a btrfs loopback FS and point java.io.tmpdir at it so the
+      # real CoW round-trip runs on Linux too (macOS APFS already supports it).
+      - name: Provision btrfs for real CoW (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq btrfs-progs
+          truncate -s 3G /tmp/rift-btrfs.img
+          mkfs.btrfs -q /tmp/rift-btrfs.img
+          sudo mkdir -p /mnt/rift-btrfs
+          sudo mount -o loop /tmp/rift-btrfs.img /mnt/rift-btrfs
+          sudo chown -R "$(id -u):$(id -g)" /mnt/rift-btrfs
+          echo "RIFT_TMPDIR=/mnt/rift-btrfs" >> "$GITHUB_ENV"
+
+      # GATE: validate THIS platform's library against REAL rift before it can
+      # be published. RIFT_TEST_REQUIRE_COW makes the full copy-on-write
+      # round-trip mandatory on every platform (macOS APFS, Linux btrfs) — no
+      # lenient fallback. A failure here aborts the whole release.
+      - name: Run binding tests against real rift (gates the release)
+        env:
+          RIFT_TEST_REQUIRE_COW: "1"
+        run: clojure ${RIFT_TMPDIR:+-J-Djava.io.tmpdir=$RIFT_TMPDIR} -X:test
 
       - name: Upload validated library artifact
         uses: actions/upload-artifact@v4
