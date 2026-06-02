@@ -55,8 +55,8 @@
       (sh/sh "git" "-c" "user.email=t@t" "-c" "user.name=t" "commit" "-qm" "init" :dir src)
       (rift/init {:at (str src) :database (str db)})
 
-      ;; MANDATORY everywhere — no fallback. rift's whole point is CoW; if it
-      ;; can't snapshot here, the test fails (that's the gate).
+      ;; MANDATORY everywhere (macOS APFS, Linux btrfs) — no fallback. rift's
+      ;; whole point is CoW; if it can't snapshot here, the test fails.
       (let [ws (rift/create {:from (str src) :name "feature" :database (str db)})]
         (println "  ✓ real rift CoW workspace created at:" ws)
         (is (string? ws) "create returns the new workspace path")

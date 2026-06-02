@@ -98,7 +98,7 @@ derives it from `resources/VERSION`.
 ## Develop
 
 ```
-clojure -X:test                      # FFM round-trip (needs --enable-native-access, set in :test)
+clojure -X:test                      # FFM round-trip (--enable-native-access is already set in the :test alias)
 clojure -T:build jar                 # build the jar
 clojure -T:build install             # install to ~/.m2
 ```
