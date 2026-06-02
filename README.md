@@ -1,5 +1,8 @@
 # rift-clojure
 
+[![Clojars Project](https://img.shields.io/clojars/v/com.blockether/rift.svg)](https://clojars.org/com.blockether/rift)
+[![CI](https://github.com/Blockether/rift-clojure/actions/workflows/ci.yml/badge.svg)](https://github.com/Blockether/rift-clojure/actions/workflows/ci.yml)
+
 Clojure binding to [**rift**](https://github.com/anomalyco/rift) — copy-on-write
 development workspaces, a faster alternative to `git worktree` (instant, near-zero
 disk via APFS `clonefile` on macOS / btrfs snapshots on Linux).
