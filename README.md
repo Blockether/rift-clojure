@@ -1,33 +1,27 @@
 # rift-clojure
 
 Clojure binding to [**rift**](https://github.com/anomalyco/rift) — copy-on-write
-development workspaces, a faster alternative to `git worktree` (instant creation,
-near-zero disk via APFS `clonefile` on macOS / btrfs snapshots on Linux).
+development workspaces, a faster alternative to `git worktree` (instant, near-zero
+disk via APFS `clonefile` on macOS / btrfs snapshots on Linux).
 
-The binding loads rift's native `librift_ffi` **in-process** through the JDK
-Foreign Function & Memory API (`java.lang.foreign`, stable since JDK 22) — no
-subprocess, no JNI, no shelling out. It's the same shared library rift ships for
-its Bun/Node bindings; we just call it from the JVM.
+It loads rift's native `librift_ffi` **in-process** through the JDK Foreign
+Function & Memory API (`java.lang.foreign`) — no subprocess, no JNI. Same shared
+library rift ships for Bun/Node, called from the JVM.
 
-> ⚠️ rift itself is marked **experimental**. This is a **vendored binding**:
-> its version tracks the rift release it wraps 1:1 — `com.blockether/rift X.Y.Z`
-> bundles `rift vX.Y.Z`. The release tag *is* the rift ref we build against.
+> ⚠️ rift is **experimental**. This is a **vendored binding**: its version tracks
+> the rift release 1:1 — `com.blockether/rift X.Y.Z` bundles `rift vX.Y.Z`.
 
 ## Install
 
 ```clojure
-;; deps.edn
 com.blockether/rift {:mvn/version "0.0.8"}
 ```
 
-You **must** run the JVM with native access enabled:
+Run the JVM with native access enabled (else the linker refuses to load the lib):
 
 ```
 --enable-native-access=ALL-UNNAMED
 ```
-
-Otherwise the first call prints a restricted-method warning (and a future JDK
-defaulting to `--illegal-native-access=deny` would refuse to load the library).
 
 ## Usage
 
@@ -35,86 +29,54 @@ defaulting to `--illegal-native-access=deny` would refuse to load the library).
 (require '[com.blockether.rift :as rift])
 
 (rift/init   {:at "/repo"})                         ; register a rift root
-(def ws (rift/create {:from "/repo" :name "fix"}))  ; => "/…/.rifts/repo/fix"  (CoW copy)
-(rift/list      {:of "/repo"})                      ; => ["/…/fix" …]  direct children
+(def ws (rift/create {:from "/repo" :name "fix"}))  ; => CoW copy path
+(rift/list      {:of "/repo"})                      ; => direct children
 (rift/ancestors {:of ws})                           ; => parents, nearest first
-(rift/remove!   {:at ws})                            ; trash the workspace
-(rift/gc)                                            ; physically delete trashed storage
+(rift/remove!   {:at ws})                            ; trash it
+(rift/gc)                                            ; delete trashed storage
 ```
 
-Every fn takes an optional `:database` to point at a specific SQLite registry
-(rift's metadata store) instead of rift's built-in default
-(`~/Library/Application Support/rift/rift.sqlite` on macOS,
-`~/.local/share/rift/rift.sqlite` on Linux). To avoid repeating it, set a
-default once:
+Every fn takes an optional `:database` (rift's SQLite registry). Set a default
+once instead of repeating it:
 
 ```clojure
-(rift/set-default-database! "/path/to/.vis/rift.sqlite")  ; process-wide
-(rift/create {:from "/repo"})                             ; no :database needed
-
-(rift/with-database "/tmp/test.sqlite"                    ; scoped override
-  (rift/list {:of "/repo"}))
+(rift/set-default-database! "/path/to/rift.sqlite")  ; process-wide
+(rift/with-database "/tmp/test.sqlite" …)            ; scoped
 ```
 
-Precedence: explicit `:database` arg > `with-database` scope >
-`set-default-database!` root > rift's built-in default.
+Precedence: explicit `:database` > `with-database` > `set-default-database!` >
+platform default (`(rift/default-database)`).
 
-Errors surface as `ex-info` with `{:type :rift/error :code <string> :path <string?>}`,
-mirroring rift's failure codes (`cow_unavailable`, `workspace_not_initialized`,
-`already_exists`, …).
+Errors are `ex-info` with `{:type :rift/error :code <string> :path <string?>}`
+(`cow_unavailable`, `workspace_not_initialized`, `already_exists`, …).
 
-## Supported platforms
+## Platforms
 
-| Platform       | Library              | Backend                  |
-| -------------- | -------------------- | ------------------------ |
-| `darwin-arm64` | `librift_ffi.dylib`  | APFS `clonefile`         |
-| `darwin-x64`   | `librift_ffi.dylib`  | APFS `clonefile`         |
-| `linux-x64`    | `librift_ffi.so`     | btrfs snapshots          |
-| `linux-arm64`  | `librift_ffi.so`     | btrfs snapshots          |
+| Platform       | Library             | Backend          |
+| -------------- | ------------------- | ---------------- |
+| `darwin-arm64` | `librift_ffi.dylib` | APFS `clonefile` |
+| `darwin-x64`   | `librift_ffi.dylib` | APFS `clonefile` |
+| `linux-x64`    | `librift_ffi.so`    | btrfs snapshots  |
+| `linux-arm64`  | `librift_ffi.so`    | btrfs snapshots  |
 
-The native libraries are **built by CI and bundled into the published jar** —
-they are NOT committed to this repo. On Linux, CoW operations require the
-workspace to live on a **btrfs** filesystem.
+Linux CoW requires a **btrfs** filesystem.
 
-## How the native libs are built
+## Native libraries
 
-The libraries are compiled from rift's `crates/ffi` (a `cdylib` exporting
-`rift_ffi_call` / `rift_ffi_free`). Because this is a vendored binding, the rift
-ref we build against is the release tag itself (`v0.0.8` → rift `v0.0.8`); CI
-derives it from `resources/VERSION`.
-
-- **Release (canonical):** `.github/workflows/deploy.yml` runs on every `v*`
-  tag. It builds all four targets on native GitHub runners (`ubuntu-latest`,
-  `ubuntu-24.04-arm`, `macos-13`, `macos-14`), drops each `librift_ffi.*` into
-  `resources/prebuilds/<platform>/`, and deploys the resulting jar — with all
-  four binaries inside it — to Clojars. The binaries live only in CI and in the
-  published artifact; they are never committed.
-- **CI:** `.github/workflows/ci.yml` builds the runner's own lib and runs the
-  binding test on every push / PR.
-- **Locally:** run `scripts/build-natives.sh` once to populate
-  `resources/prebuilds/` for your machine (macOS natively; Linux via Docker).
-  The directory is git-ignored.
+Built from rift's `crates/ffi` at the release tag, on native GitHub runners, and
+bundled into the published jar — **never committed**. `deploy.yml` builds every
+platform on each `v*` tag and publishes to Clojars; `ci.yml` builds + tests each
+platform on push/PR. Locally, `scripts/build-natives.sh` populates the
+git-ignored `resources/prebuilds/`.
 
 ## Develop
 
 ```
-clojure -X:test                      # FFM round-trip (--enable-native-access is already set in the :test alias)
-clojure -T:build jar                 # build the jar
-clojure -T:build install             # install to ~/.m2
+clojure -X:test          # run the test suite
+clojure -T:build jar     # build the jar
+clojure -T:build install # install to ~/.m2
 ```
-
-## The ABI (for the curious)
-
-```c
-char* rift_ffi_call(const char* json_request);  // heap-allocated JSON reply
-void  rift_ffi_free(char* reply);
-```
-
-Request `{"command":"create","from":"…"}` → reply
-`{"status":"ok","value":…}` or `{"status":"error","error":{…}}`. That's the
-whole contract; `com.blockether.rift` marshals Clojure maps ↔ JSON across it.
 
 ## License
 
-MIT (matching rift). Vendored `librift_ffi` binaries are © the rift authors,
-also MIT.
+MIT (matching rift); vendored `librift_ffi` binaries © the rift authors, MIT.
