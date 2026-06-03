@@ -119,6 +119,20 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" /mnt/rift-btrfs
           echo "RIFT_TMPDIR=/mnt/rift-btrfs" >> "$GITHUB_ENV"
 
+      # Hard proof the darwin-x64 path is genuine: the staged dylib must be
+      # Mach-O x86_64, and the JVM about to test it must itself be x86_64
+      # running under Rosetta (proc_translated == 1 on the arm64 host).
+      - name: Verify darwin-x64 is really x86_64 + Rosetta
+        if: matrix.rosetta
+        run: |
+          echo "== built dylib arch =="
+          file   resources/prebuilds/darwin-x64/librift_ffi.dylib
+          lipo -archs resources/prebuilds/darwin-x64/librift_ffi.dylib
+          echo "== test JVM arch =="
+          "$JAVA_HOME/bin/java" -XshowSettings:properties -version 2>&1 | grep -i 'os.arch'
+          echo "== sysctl.proc_translated (1 = running under Rosetta) =="
+          sysctl -n sysctl.proc_translated
+
       - name: Run tests against real rift (real CoW mandatory)
         shell: bash
         run: clojure ${RIFT_TMPDIR:+-J-Djava.io.tmpdir=$RIFT_TMPDIR} -X:test
