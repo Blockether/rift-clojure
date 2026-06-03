@@ -14,13 +14,19 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Build librift_ffi for every platform on a NATIVE runner (no qemu / no
-  # cross-linker) AND run the Clojure binding test against the freshly-built
-  # library on that same platform. fail-fast aborts the whole release if any
-  # platform fails, and the `release` job has `needs: natives` — so NOTHING is
-  # deployed to Clojars unless all four platforms built and tested green.
-  # Each job uploads its validated library; the release job bundles them into
-  # the published jar. Nothing is committed back to the repo.
+  # Build librift_ffi for every platform AND run the Clojure binding test
+  # against the freshly-built library. linux-x64 / linux-arm64 / darwin-arm64
+  # build+test NATIVELY. darwin-x64 is CROSS-built on the Apple-Silicon
+  # (macos-14) runner — Xcode's macOS SDK is universal, so the M1 emits a
+  # valid Intel dylib in seconds instead of waiting ~14 min on a slow,
+  # scarce macos-13 Intel runner — and its binding test runs under Rosetta 2
+  # with an x86_64 JVM (an arm64 JVM cannot FFM-load an x86_64 dylib). The
+  # binding picks the prebuild by os.arch, and Rosetta makes the JVM report
+  # x86_64, so the test exercises the cross-built x64 lib for real.
+  # fail-fast aborts the whole release if any platform fails, and the
+  # `release` job has `needs: natives` — so NOTHING is deployed to Clojars
+  # unless all four platforms built and tested green. Each job uploads its
+  # validated library; the release job bundles them into the published jar.
   # ---------------------------------------------------------------------------
   natives:
     name: build + test ${{ matrix.name }}
@@ -28,9 +34,10 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - { name: linux-x64,    os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  lib: librift_ffi.so }
-          - { name: linux-arm64,  os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, lib: librift_ffi.so }
-          - { name: darwin-arm64, os: macos-14,         target: aarch64-apple-darwin,      lib: librift_ffi.dylib }
+          - { name: linux-x64,    os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  lib: librift_ffi.so,    jdk-arch: x64 }
+          - { name: linux-arm64,  os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, lib: librift_ffi.so,    jdk-arch: aarch64 }
+          - { name: darwin-arm64, os: macos-14,         target: aarch64-apple-darwin,      lib: librift_ffi.dylib, jdk-arch: aarch64 }
+          - { name: darwin-x64,   os: macos-14,         target: x86_64-apple-darwin,       lib: librift_ffi.dylib, jdk-arch: x64, rosetta: true }
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout rift-clojure
@@ -78,10 +85,18 @@ jobs:
           cp "rift-src/target/${{ matrix.target }}/release/${{ matrix.lib }}" \
              "resources/prebuilds/${{ matrix.name }}/${{ matrix.lib }}"
 
+      # darwin-x64 is cross-built here on Apple Silicon; running its x86_64
+      # JVM for the binding test requires Rosetta 2. Idempotent / no-op when
+      # already present.
+      - name: Install Rosetta 2 (darwin-x64 cross test)
+        if: matrix.rosetta
+        run: softwareupdate --install-rosetta --agree-to-license
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "25"
+          architecture: ${{ matrix.jdk-arch }}
 
       - uses: DeLaGuardo/setup-clojure@13.5
         with:

@@ -18,9 +18,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: linux-x64,    os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  lib: librift_ffi.so }
-          - { name: linux-arm64,  os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, lib: librift_ffi.so }
-          - { name: darwin-arm64, os: macos-14,         target: aarch64-apple-darwin,      lib: librift_ffi.dylib }
+          - { name: linux-x64,    os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  lib: librift_ffi.so,    jdk-arch: x64 }
+          - { name: linux-arm64,  os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, lib: librift_ffi.so,    jdk-arch: aarch64 }
+          - { name: darwin-arm64, os: macos-14,         target: aarch64-apple-darwin,      lib: librift_ffi.dylib, jdk-arch: aarch64 }
+          # darwin-x64: CROSS-built on the Apple-Silicon runner (universal
+          # macOS SDK) and tested under Rosetta 2 with an x86_64 JVM, instead
+          # of the slow/scarce macos-13 Intel runner.
+          - { name: darwin-x64,   os: macos-14,         target: x86_64-apple-darwin,       lib: librift_ffi.dylib, jdk-arch: x64, rosetta: true }
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -73,10 +77,18 @@ jobs:
           cp "rift-src/target/${{ matrix.target }}/release/${{ matrix.lib }}" \
              "resources/prebuilds/${{ matrix.name }}/${{ matrix.lib }}"
 
+      # darwin-x64 is cross-built here on Apple Silicon; running its x86_64
+      # JVM for the binding test requires Rosetta 2. Idempotent / no-op when
+      # already present.
+      - name: Install Rosetta 2 (darwin-x64 cross test)
+        if: matrix.rosetta
+        run: softwareupdate --install-rosetta --agree-to-license
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "25"
+          architecture: ${{ matrix.jdk-arch }}
 
       - uses: DeLaGuardo/setup-clojure@13.5
         with:
