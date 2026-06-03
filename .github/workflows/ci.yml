@@ -130,8 +130,10 @@ jobs:
           lipo -archs resources/prebuilds/darwin-x64/librift_ffi.dylib
           echo "== test JVM arch =="
           "$JAVA_HOME/bin/java" -XshowSettings:properties -version 2>&1 | grep -i 'os.arch'
-          echo "== sysctl.proc_translated (1 = running under Rosetta) =="
-          sysctl -n sysctl.proc_translated
+          echo "== host kernel arch (arm64) vs java binary arch (x86_64) =="
+          echo "host uname -m: $(uname -m)"
+          echo -n "java binary archs: "; lipo -archs "$JAVA_HOME/bin/java"
+          # x86_64 java executing on an arm64 host => running under Rosetta 2.
 
       - name: Run tests against real rift (real CoW mandatory)
         shell: bash
