@@ -17,7 +17,7 @@ library rift ships for Bun/Node, called from the JVM.
 ## Install
 
 ```clojure
-com.blockether/rift {:mvn/version "0.0.8"}
+com.blockether/rift {:mvn/version "0.0.10"}
 ```
 
 Run the JVM with native access enabled (else the linker refuses to load the lib):

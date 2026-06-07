@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10] - 2026-06-07
+
+### Changed
+- chore(ci): bump GitHub Actions to Node 24 runtimes
+- ci(darwin-x64): unambiguous Rosetta proof — host arm64 vs x86_64 java
+- ci(darwin-x64): log hard proof — dylib is Mach-O x86_64 + JVM under Rosetta
+- ci: cross-build + Rosetta-test darwin-x64 on Apple Silicon
+- ci: cache Rust build (Swatinem/rust-cache) — kill cold cdylib compile
+- docs(readme): drop Native libraries build/CI section
+- release: update version files for v0.0.8
+
+
 ## [v0.0.8] - 2026-06-02
 
 ### Changed
@@ -28,5 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ancestors` / `gc`. Native libraries built per-platform by CI and bundled
   into the published jar. Version tracks the vendored rift release 1:1.
 
-[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.8...HEAD
+[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10...HEAD
 [v0.0.8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.8
+[v0.0.10]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10
