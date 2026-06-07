@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Vendored binding: the rift ref is whatever version we vendor.
       - name: Derive rift ref from resources/VERSION
@@ -36,7 +36,7 @@ jobs:
         run: echo "RIFT_REF=v$(tr -d '[:space:]' < resources/VERSION)" >> "$GITHUB_ENV"
 
       - name: Checkout rift source (${{ env.RIFT_REF }})
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: anomalyco/rift
           ref: ${{ env.RIFT_REF }}
@@ -84,18 +84,18 @@ jobs:
         if: matrix.rosetta
         run: softwareupdate --install-rosetta --agree-to-license
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "25"
           architecture: ${{ matrix.jdk-arch }}
 
-      - uses: DeLaGuardo/setup-clojure@13.5
+      - uses: DeLaGuardo/setup-clojure@13.6.1
         with:
           cli: latest
 
       - name: Cache Clojure deps
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.m2/repository
