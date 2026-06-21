@@ -53,7 +53,7 @@
     :src-dirs ["src"]
     :pom-data (pom-data "Clojure binding to rift — copy-on-write workspaces — via the JDK Foreign Function & Memory API.")})
   (b/copy-dir {:src-dirs ["src"] :target-dir class-dir})
-  (b/copy-file {:src "resources/VERSION" :target (str class-dir "/VERSION")})
+  (spit (io/file class-dir "VERSION") version)
   (b/jar {:class-dir class-dir :jar-file jar-file})
   (println "Built:" jar-file "version:" version))
 
