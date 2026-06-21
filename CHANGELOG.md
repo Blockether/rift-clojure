@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-1] - 2026-06-21
+
+### Changed
+- Prepare 0.0.10-1 Clojars release
+- Split rift native artifacts by platform
+- release: update version files for v0.0.10
+
+
 ## [v0.0.10] - 2026-06-07
 
 ### Changed
@@ -40,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ancestors` / `gc`. Native libraries built per-platform by CI and bundled
   into the published jar. Version tracks the vendored rift release 1:1.
 
-[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10...HEAD
+[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-1...HEAD
 [v0.0.8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.8
 [v0.0.10]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10
+[v0.0.10-1]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-1
