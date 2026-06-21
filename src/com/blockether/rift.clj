@@ -13,10 +13,12 @@
    `{\"status\" \"ok\" \"value\" ...}` or
    `{\"status\" \"error\" \"error\" {\"code\" .. \"message\" .. \"path\" ..}}`.
 
-   We bundle the prebuilt library for every supported platform under
-   `resources/prebuilds/<os>-<arch>/`, extract the matching one to a temp file
-   at first use (you cannot `dlopen` from inside a jar), open it, and bind the
-   two symbols. The library is mapped for the lifetime of the process.
+   Native loading checks, in order:
+
+     1. `RIFT_NATIVE_PATH` / `com.blockether.rift.native.path`,
+     2. a bundled `resources/prebuilds/<os>-<arch>/...` classpath resource,
+     3. the matching `com.blockether/rift-native-<os>-<arch>` Clojars artifact
+        downloaded into `~/.cache/clj-rift`.
 
    Supported platforms: darwin-arm64, darwin-x64, linux-x64, linux-arm64.
 
@@ -25,12 +27,16 @@
    default of `--illegal-native-access=deny` would fail outright)."
   (:refer-clojure :exclude [list ancestors])
   (:require [charred.api :as json]
-            [clojure.java.io :as io])
-  (:import [java.io File]
+            [clojure.java.io :as io]
+            [clojure.string :as str])
+  (:import [java.io File InputStream]
            [java.lang.foreign Arena FunctionDescriptor Linker Linker$Option
             MemoryLayout MemorySegment SymbolLookup ValueLayout]
            [java.lang.invoke MethodHandle]
-           [java.nio.file Path]))
+           [java.net URI URL]
+           [java.net.http HttpClient HttpRequest HttpResponse HttpResponse$BodyHandlers]
+           [java.nio.file CopyOption Files Path StandardCopyOption]
+           [java.util.jar JarFile]))
 
 (set! *warn-on-reflection* true)
 
@@ -61,29 +67,92 @@
     "linux"   "librift_ffi.so"
     "windows" "rift_ffi.dll"))
 
-(defn- library-path
-  "Return a real filesystem `Path` to the bundled library for the running
-   platform. The OS dynamic linker (what FFM's `libraryLookup` calls) can only
-   open a real file — never bytes inside a jar — so:
+(def ^:private clojars-root "https://repo.clojars.org")
 
-     - classpath `file:` URL (local dev / unpacked dir): use it directly, no copy;
-     - anything else (`jar:`, …): the linker can't read it, so extract to a
-       temp file (removed on JVM exit) and return that."
-  ^Path []
-  (let [[os arch] (platform)
-        fname (lib-file-name os)
-        res   (str "prebuilds/" os "-" arch "/" fname)
-        url   (or (io/resource res)
-                (throw (ex-info (str "No bundled rift library for " os "-" arch
-                                  " (missing classpath resource " res ")")
-                         {:os os :arch arch :resource res})))]
-    (if (= "file" (.getProtocol ^java.net.URL url))
+(defn- configured-native-path ^Path []
+  (when-let [p (or (System/getenv "RIFT_NATIVE_PATH")
+                   (System/getProperty "com.blockether.rift.native.path"))]
+    (.toPath (io/file p))))
+
+(defn- bundled-library-path ^Path [res fname]
+  (when-let [^URL url (io/resource res)]
+    (if (= "file" (.getProtocol url))
       (.toPath (io/file url))
       (let [tmp (doto (File/createTempFile "librift_ffi" (subs fname (.lastIndexOf ^String fname ".")))
                   .deleteOnExit)]
         (with-open [in (io/input-stream url)]
           (io/copy in tmp))
         (.toPath tmp)))))
+
+(defn- artifact-version []
+  (str/trim (slurp (io/resource "VERSION"))))
+
+(defn- cache-root ^Path []
+  (if-let [p (or (System/getenv "RIFT_CACHE_DIR")
+                 (System/getProperty "com.blockether.rift.cache-dir"))]
+    (.toPath (io/file p))
+    (.toPath (io/file (System/getProperty "user.home") ".cache" "clj-rift"))))
+
+(defn- native-artifact [platform]
+  (str "rift-native-" platform))
+
+(defn- native-jar-uri ^URI [version platform]
+  (let [artifact (native-artifact platform)]
+    (URI/create (format "%s/com/blockether/%s/%s/%s-%s.jar"
+                        clojars-root artifact version artifact version))))
+
+(defn- download-file! ^Path [^URI uri ^Path dest]
+  (Files/createDirectories (.getParent dest) (make-array java.nio.file.attribute.FileAttribute 0))
+  (let [client (HttpClient/newHttpClient)
+        request (-> (HttpRequest/newBuilder uri) (.GET) (.build))
+        response (.send client request (HttpResponse$BodyHandlers/ofFile dest))]
+    (when-not (= 200 (.statusCode ^HttpResponse response))
+      (Files/deleteIfExists dest)
+      (throw (ex-info (str "Unable to download rift native artifact from " uri
+                           " (HTTP " (.statusCode ^HttpResponse response) ")")
+                      {:uri (str uri) :status (.statusCode ^HttpResponse response)})))
+    dest))
+
+(defn- extract-native! ^Path [^Path jar-path res ^Path dest]
+  (Files/createDirectories (.getParent dest) (make-array java.nio.file.attribute.FileAttribute 0))
+  (with-open [jar (JarFile. (.toFile jar-path))]
+    (let [entry (.getEntry jar res)]
+      (when-not entry
+        (throw (ex-info (str "Native artifact is missing " res) {:jar (str jar-path) :resource res})))
+      (with-open [^InputStream in (.getInputStream jar entry)]
+        (let [^"[Ljava.nio.file.CopyOption;" opts (into-array CopyOption [StandardCopyOption/REPLACE_EXISTING])]
+          (Files/copy in dest opts))))
+    dest))
+
+(defn- downloaded-library-path ^Path [platform res fname]
+  (when-not (#{"1" "true" "yes"} (some-> (System/getenv "RIFT_DISABLE_DOWNLOAD") str/lower-case))
+    (let [version (artifact-version)
+          root (cache-root)
+          lib-path (.resolve root (str version "/" platform "/" fname))
+          jar-path (.resolve root (str version "/" (native-artifact platform) ".jar"))]
+      (if (Files/exists lib-path (make-array java.nio.file.LinkOption 0))
+        lib-path
+        (do
+          (when-not (Files/exists jar-path (make-array java.nio.file.LinkOption 0))
+            (download-file! (native-jar-uri version platform) jar-path))
+          (extract-native! jar-path res lib-path))))))
+
+(defn- library-path
+  "Return a real filesystem `Path` to the native library for the running
+   platform. Prefer an explicit native path, then a bundled classpath resource,
+   then the matching per-platform Clojars native artifact."
+  ^Path []
+  (let [[os arch] (platform)
+        platform (str os "-" arch)
+        fname (lib-file-name os)
+        res (str "prebuilds/" platform "/" fname)]
+    (or (configured-native-path)
+        (bundled-library-path res fname)
+        (downloaded-library-path platform res fname)
+        (throw (ex-info (str "No rift native library for " platform
+                             ". Add com.blockether/" (native-artifact platform)
+                             ", set RIFT_NATIVE_PATH, or enable runtime download.")
+                        {:platform platform :resource res})))))
 
 ;; ---------------------------------------------------------------------------
 ;; Native binding (lazy, process-lifetime)
@@ -101,13 +170,13 @@
         sym    (fn ^MemorySegment [name]
                  (.orElseThrow (.find lookup name)))
         call-h (.downcallHandle linker (sym "rift_ffi_call")
-                 (FunctionDescriptor/of ValueLayout/ADDRESS
-                   (into-array MemoryLayout [ValueLayout/ADDRESS]))
-                 opts)
+                                (FunctionDescriptor/of ValueLayout/ADDRESS
+                                                       (into-array MemoryLayout [ValueLayout/ADDRESS]))
+                                opts)
         free-h (.downcallHandle linker (sym "rift_ffi_free")
-                 (FunctionDescriptor/ofVoid
-                   (into-array MemoryLayout [ValueLayout/ADDRESS]))
-                 opts)]
+                                (FunctionDescriptor/ofVoid
+                                 (into-array MemoryLayout [ValueLayout/ADDRESS]))
+                                opts)]
     {:call call-h :free free-h}))
 
 (defonce ^:private handles (delay (bind!)))
@@ -123,7 +192,7 @@
             ret    ^MemorySegment (.invokeWithArguments call (object-array [in-seg]))]
         (when (or (nil? ret) (zero? (.address ret)))
           (throw (ex-info "rift native library returned a null response"
-                   {:type :rift/protocol :request request})))
+                          {:type :rift/protocol :request request})))
         (try
           (.getString (.reinterpret ret Long/MAX_VALUE) 0)
           (finally
@@ -143,10 +212,10 @@
       "ok"    (:value reply)
       "error" (let [{:keys [code message path]} (:error reply)]
                 (throw (ex-info (or message "rift error")
-                         {:type :rift/error :code code :path path
-                          :command (:command request)})))
+                                {:type :rift/error :code code :path path
+                                 :command (:command request)})))
       (throw (ex-info "Unexpected rift response shape"
-               {:type :rift/protocol :reply reply})))))
+                      {:type :rift/protocol :reply reply})))))
 
 (defn- s [x] (when (some? x) (str x)))
 
@@ -237,7 +306,7 @@
    its parent directory exists."
   [request database]
   (assoc request :database
-    (ensure-parent! (or (s database) *database* (default-database)))))
+         (ensure-parent! (or (s database) *database* (default-database)))))
 
 ;; ---------------------------------------------------------------------------
 ;; Public API — mirrors the rift-snapshot JS surface
@@ -263,9 +332,9 @@
   ([] (create {}))
   ([{:keys [from name into database]}]
    (call* (-> {:command "create" :from (s (or from (here)))}
-            (cond-> name (assoc :name (s name))
-                    into (assoc :into (s into)))
-            (add-db database)))))
+              (cond-> name (assoc :name (s name))
+                      into (assoc :into (s into)))
+              (add-db database)))))
 
 (defn remove!
   "Remove a created workspace at `:at` (default: current dir). With `:all true`
@@ -277,8 +346,8 @@
   ([] (remove! {}))
   ([{:keys [at all database]}]
    (let [v (call* (-> {:command "remove" :at (s (or at (here)))}
-                    (cond-> (some? all) (assoc :all (boolean all)))
-                    (add-db database)))]
+                      (cond-> (some? all) (assoc :all (boolean all)))
+                      (add-db database)))]
      (when all (vec v)))))
 
 (defn list

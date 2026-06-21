@@ -1,8 +1,10 @@
 ;; rift-clojure — Clojure binding to rift (copy-on-write workspaces) via the
 ;; JDK Foreign Function & Memory API. ONE namespace: com.blockether.rift.
 ;;
-;; The prebuilt native libraries live under resources/prebuilds/<os>-<arch>/
-;; and ship inside the jar. Consumers must run the JVM with
+;; The main jar is intentionally small. Native libraries are resolved at
+;; runtime from an explicit RIFT_NATIVE_PATH, a classpath resource supplied by
+;; com.blockether/rift-native-<platform>, or a downloaded Clojars native jar.
+;; Consumers must run the JVM with
 ;;   --enable-native-access=ALL-UNNAMED
 ;; so the foreign linker may load the library without a restricted-method
 ;; warning.

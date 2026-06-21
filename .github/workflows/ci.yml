@@ -139,5 +139,8 @@ jobs:
         shell: bash
         run: clojure ${RIFT_TMPDIR:+-J-Djava.io.tmpdir=$RIFT_TMPDIR} -X:test
 
-      - name: Build jar
+      - name: Build platform native jar
+        run: clojure -T:build native-jar :platform ${{ matrix.name }}
+
+      - name: Build tiny main jar
         run: clojure -T:build jar

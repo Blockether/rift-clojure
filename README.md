@@ -12,13 +12,18 @@ Function & Memory API (`java.lang.foreign`) — no subprocess, no JNI. Same shar
 library rift ships for Bun/Node, called from the JVM.
 
 > ⚠️ rift is **experimental**. This is a **vendored binding**: its version tracks
-> the rift release 1:1 — `com.blockether/rift X.Y.Z` bundles `rift vX.Y.Z`.
+> the rift release 1:1 — `com.blockether/rift X.Y.Z` targets `rift vX.Y.Z`.
 
 ## Install
 
 ```clojure
 com.blockether/rift {:mvn/version "0.0.10"}
 ```
+
+Native loading is automatic: `com.blockether/rift` first checks `RIFT_NATIVE_PATH`, then any
+classpath native jar, then downloads `com.blockether/rift-native-<platform>` from
+Clojars into `~/.cache/clj-rift`. You can also add the native jar explicitly, e.g.
+`com.blockether/rift-native-linux-x64 {:mvn/version "0.0.8"}`.
 
 Run the JVM with native access enabled (else the linker refuses to load the lib):
 
@@ -58,6 +63,7 @@ Errors are `ex-info` with `{:type :rift/error :code <string> :path <string?>}`
 | Platform       | Library             | Backend          |
 | -------------- | ------------------- | ---------------- |
 | `darwin-arm64` | `librift_ffi.dylib` | APFS `clonefile` |
+| `darwin-x64`   | `librift_ffi.dylib` | APFS `clonefile` |
 | `linux-x64`    | `librift_ffi.so`    | btrfs snapshots  |
 | `linux-arm64`  | `librift_ffi.so`    | btrfs snapshots  |
 
@@ -67,7 +73,8 @@ Linux CoW requires a **btrfs** filesystem.
 
 ```
 clojure -X:test          # run the test suite
-clojure -T:build jar     # build the jar
+clojure -T:build jar     # build the tiny main jar
+clojure -T:build native-jar :platform darwin-arm64 # build one native jar
 clojure -T:build install # install to ~/.m2
 ```
 
