@@ -85,7 +85,13 @@
         (.toPath tmp)))))
 
 (defn- artifact-version []
-  (str/trim (slurp (io/resource "VERSION"))))
+  ;; Read a NAMESPACED resource. An unqualified "VERSION" at the jar root
+  ;; collides with every other lib that ships one (fff, svar, …) — whichever is
+  ;; first on the classpath wins, so rift would resolve a FOREIGN version and try
+  ;; to download a nonexistent rift-native-<that-version> (HTTP 404). `rift/VERSION`
+  ;; is unique to this jar; read only it so a packaging mistake fails loudly here
+  ;; rather than silently resolving someone else's version.
+  (str/trim (slurp (io/resource "rift/VERSION"))))
 
 (defn- cache-root ^Path []
   (if-let [p (or (System/getenv "RIFT_CACHE_DIR")
