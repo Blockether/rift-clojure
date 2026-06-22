@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-2] - 2026-06-22
+
+### Changed
+- fix: read version from namespaced rift/VERSION (avoid classpath VERSION collision)
+
+
 ## [v0.0.10-1] - 2026-06-21
 
 ### Changed
@@ -48,7 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ancestors` / `gc`. Native libraries built per-platform by CI and bundled
   into the published jar. Version tracks the vendored rift release 1:1.
 
-[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-1...HEAD
+[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-2...HEAD
 [v0.0.8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.8
 [v0.0.10]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10
 [v0.0.10-1]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-1
+[v0.0.10-2]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-2
