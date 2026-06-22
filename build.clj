@@ -53,7 +53,12 @@
     :src-dirs ["src"]
     :pom-data (pom-data "Clojure binding to rift — copy-on-write workspaces — via the JDK Foreign Function & Memory API.")})
   (b/copy-dir {:src-dirs ["src"] :target-dir class-dir})
-  (spit (io/file class-dir "VERSION") version)
+  ;; Ship the version under a NAMESPACED resource path (rift/VERSION), not the
+  ;; jar root, so it can't collide with other libs' `VERSION` on a shared
+  ;; classpath (which made rift resolve a foreign version and 404 the native).
+  (let [vfile (io/file class-dir "rift" "VERSION")]
+    (io/make-parents vfile)
+    (spit vfile version))
   (b/jar {:class-dir class-dir :jar-file jar-file})
   (println "Built:" jar-file "version:" version))
 
