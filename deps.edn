@@ -3,7 +3,9 @@
 ;;
 ;; The main jar is intentionally small. Native libraries are resolved at
 ;; runtime from an explicit RIFT_NATIVE_PATH, a classpath resource supplied by
-;; com.blockether/rift-native-<platform>, or a downloaded Clojars native jar.
+;; com.blockether/rift-native-<platform>, or — as a fallback — the matching
+;; native jar resolved through Clojure's own dependency machinery
+;; (clojure.tools.deps), which honours configured Maven repos/mirrors/settings.xml.
 ;; Consumers must run the JVM with
 ;;   --enable-native-access=ALL-UNNAMED
 ;; so the foreign linker may load the library without a restricted-method
@@ -12,7 +14,13 @@
 
  :deps
  {;; charred — fast JSON, the rift FFI wire format. Same version vis uses.
-  com.cnuernber/charred {:mvn/version "1.038"}}
+  com.cnuernber/charred {:mvn/version "1.038"}
+  ;; tools.deps powers the runtime native-jar fallback in
+  ;; com.blockether.rift/resolve-native-jar — the same resolver the clojure CLI
+  ;; uses, so :mvn/repos, mirrors and settings.xml are honoured instead of a
+  ;; hand-rolled HTTP GET. Loaded lazily via requiring-resolve, so it is NOT
+  ;; pulled into a native image (where the native lib is bundled/explicit).
+  org.clojure/tools.deps {:mvn/version "0.31.1629"}}
 
  :aliases
  {:build
