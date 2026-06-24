@@ -1,0 +1,15 @@
+{
+  "comment": "clj rift binds librift_ffi via the JDK Foreign Function & Memory API; JSON at the boundary is parsed by charred (reflection-free), so only the FFM downcall stubs need registering. They mirror com.blockether.rift/bind!: rift_ffi_call(void*) -> void*, rift_ffi_free(void*) -> void. The native library ships as a classpath resource prebuilds/<platform>/librift_ffi.* in com.blockether/rift-native-<platform>; bundle that jar (resources glob below) or set RIFT_NATIVE_PATH.",
+  "reflection": [],
+  "jni": [],
+  "resources": [
+    { "glob": "prebuilds/**" }
+  ],
+  "foreign": {
+    "downcalls": [
+      { "returnType": "void*", "parameterTypes": ["void*"] },
+      { "returnType": "void",  "parameterTypes": ["void*"] }
+    ],
+    "upcalls": []
+  }
+}

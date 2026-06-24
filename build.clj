@@ -53,6 +53,9 @@
     :src-dirs ["src"]
     :pom-data (pom-data "Clojure binding to rift — copy-on-write workspaces — via the JDK Foreign Function & Memory API.")})
   (b/copy-dir {:src-dirs ["src"] :target-dir class-dir})
+  ;; Ship the GraalVM native-image config (FFM downcalls + prebuilds glob) so a
+  ;; downstream native-image build (e.g. vis) picks it up automatically.
+  (b/copy-dir {:src-dirs ["resources/META-INF"] :target-dir (str class-dir "/META-INF")})
   ;; Ship the version under a NAMESPACED resource path (rift/VERSION), not the
   ;; jar root, so it can't collide with other libs' `VERSION` on a shared
   ;; classpath (which made rift resolve a foreign version and 404 the native).
