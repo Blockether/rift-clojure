@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-4] - 2026-06-24
+
+### Changed
+- feat(graalvm): ship native-image config + GraalPy-safe ofAuto arena
+
+
 ## [v0.0.10-3] - 2026-06-23
 
 ### Changed
@@ -64,9 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ancestors` / `gc`. Native libraries built per-platform by CI and bundled
   into the published jar. Version tracks the vendored rift release 1:1.
 
-[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-3...HEAD
+[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-4...HEAD
 [v0.0.8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.8
 [v0.0.10]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10
 [v0.0.10-1]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-1
 [v0.0.10-2]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-2
 [v0.0.10-3]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-3
+[v0.0.10-4]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-4
