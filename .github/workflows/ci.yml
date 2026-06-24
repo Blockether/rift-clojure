@@ -30,10 +30,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Vendored binding: the rift ref is whatever version we vendor.
-      - name: Derive rift ref from resources/VERSION
+      # Pin the anomalyco/rift Rust source ref. clj-rift's own version
+      # (resources/VERSION, e.g. 0.0.10-5) is INDEPENDENT of the rift source tag
+      # (anomalyco/rift tags v0.0.10, not v0.0.10-5) — deriving the ref from
+      # VERSION 404'd the checkout. Keep in sync with deploy.yml's RIFT_REF.
+      - name: Pin rift source ref
         shell: bash
-        run: echo "RIFT_REF=v$(tr -d '[:space:]' < resources/VERSION)" >> "$GITHUB_ENV"
+        run: echo "RIFT_REF=v0.0.10" >> "$GITHUB_ENV"
 
       - name: Checkout rift source (${{ env.RIFT_REF }})
         uses: actions/checkout@v6
