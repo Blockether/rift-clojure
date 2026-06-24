@@ -163,7 +163,13 @@
    Returns `{:call MethodHandle :free MethodHandle}`."
   []
   (let [linker ^Linker (Linker/nativeLinker)
-        arena  (Arena/ofShared)                ;; library stays mapped for the process
+        ;; ofAuto (GC-managed, process-lifetime via the `handles` defonce), NOT
+        ;; ofShared: a SHARED arena is incompatible with Truffle runtime
+        ;; compilation, so a native image that also embeds GraalPy (e.g. vis)
+        ;; fails to build with "Arena.ofShared is not supported with runtime
+        ;; compilations". ofAuto keeps the library mapped for the process and
+        ;; needs no -H:+SharedArenaSupport flag.
+        arena  (Arena/ofAuto)
         path   (library-path)
         lookup ^SymbolLookup (SymbolLookup/libraryLookup path arena)
         opts   (make-array Linker$Option 0)
