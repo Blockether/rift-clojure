@@ -14,18 +14,19 @@
 
  :deps
  {;; charred — fast JSON, the rift FFI wire format. Same version vis uses.
-  com.cnuernber/charred {:mvn/version "1.038"}
-  ;; tools.deps powers the runtime native-jar fallback in
-  ;; com.blockether.rift/resolve-native-jar — the same resolver the clojure CLI
-  ;; uses, so :mvn/repos, mirrors and settings.xml are honoured instead of a
-  ;; hand-rolled HTTP GET. Loaded lazily via requiring-resolve, so it is NOT
-  ;; pulled into a native image (where the native lib is bundled/explicit).
-  org.clojure/tools.deps {:mvn/version "0.31.1629"}}
+  com.cnuernber/charred {:mvn/version "1.038"}}
+ ;; `org.clojure/tools.deps` (the optional native-jar DOWNLOAD fallback) is
+ ;; intentionally NOT a hard dep — it drags in a large tree (incl. cognitect.aws's
+ ;; S3 transporter) that breaks GraalVM native-image. Consumers who want the
+ ;; fallback add tools.deps (or use the `:download` alias); native-image consumers
+ ;; bundle the `rift-native-<platform>` jar (or set RIFT_NATIVE_PATH).
 
  :aliases
- {:build
-  {:deps      {io.github.clojure/tools.build {:mvn/version "0.10.6"}
-               slipset/deps-deploy           {:mvn/version "0.2.2"}}
+ {:download {:deps {org.clojure/tools.deps {:mvn/version "0.31.1629"}}}
+
+  :build
+  {:deps      {io.github.clojure/tools.build {:mvn/version "0.10.9"}
+               slipset/deps-deploy           {:mvn/version "0.2.5"}}
    :ns-default build}
 
   :test
