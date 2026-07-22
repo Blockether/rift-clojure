@@ -11,7 +11,7 @@ env:
   # Wrapper patch releases build the vendored native source from the rift ref
   # they wrap. Source = Blockether/rift (public fork carrying the APFS
   # filtered-clone EACCES fix); v0.0.10-6 tags that fix commit.
-  RIFT_REF: v0.0.10-6
+  RIFT_REF: v0.0.10-7
 
 jobs:
   # ---------------------------------------------------------------------------
