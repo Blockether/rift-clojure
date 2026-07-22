@@ -8,9 +8,10 @@ permissions:
   contents: write
 
 env:
-  # Wrapper patch releases (e.g. v0.0.10-1) still build the vendored native source
-  # from the upstream rift tag they wrap.
-  RIFT_REF: v0.0.10
+  # Wrapper patch releases build the vendored native source from the rift ref
+  # they wrap. Source = Blockether/rift (public fork carrying the APFS
+  # filtered-clone EACCES fix); v0.0.10-6 tags that fix commit.
+  RIFT_REF: v0.0.10-6
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -46,7 +47,7 @@ jobs:
       - name: Checkout rift source (${{ env.RIFT_REF }})
         uses: actions/checkout@v6
         with:
-          repository: anomalyco/rift
+          repository: Blockether/rift
           ref: ${{ env.RIFT_REF }}
           path: rift-src
 

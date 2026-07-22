@@ -30,18 +30,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Pin the anomalyco/rift Rust source ref. clj-rift's own version
-      # (resources/VERSION, e.g. 0.0.10-5) is INDEPENDENT of the rift source tag
-      # (anomalyco/rift tags v0.0.10, not v0.0.10-5) — deriving the ref from
-      # VERSION 404'd the checkout. Keep in sync with deploy.yml's RIFT_REF.
+      # Pin the rift Rust source ref. clj-rift's own version (resources/VERSION,
+      # e.g. 0.0.10-6) is INDEPENDENT of the rift source tag. We build the native
+      # from Blockether/rift (the org fork that carries the APFS filtered-clone
+      # EACCES fix); it is public, so actions/checkout needs no token. Keep in
+      # sync with deploy.yml's RIFT_REF.
       - name: Pin rift source ref
         shell: bash
-        run: echo "RIFT_REF=v0.0.10" >> "$GITHUB_ENV"
+        run: echo "RIFT_REF=v0.0.10-6" >> "$GITHUB_ENV"
 
       - name: Checkout rift source (${{ env.RIFT_REF }})
         uses: actions/checkout@v6
         with:
-          repository: anomalyco/rift
+          repository: Blockether/rift
           ref: ${{ env.RIFT_REF }}
           path: rift-src
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-6] - 2026-06-24
+
+### Fixed
+- Vendor rift native from Blockether/rift `v0.0.10-6`, which carries the APFS
+  filtered-clone fix: `create` no longer fails with `Permission denied (os error 13)`
+  when cloning a committed git repo (read-only `0444` `.git` objects with the
+  `com.apple.provenance` xattr). Clones stay owner-writable while metadata is
+  copied, then the source's exact mode is restored last.
+
 ## [v0.0.10-5] - 2026-06-24
 
 ### Changed
