@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-7] - 2026-07-22
+
+### Changed
+- Vendor rift native from Blockether/rift `v0.0.10-7`, which adds a conditional-chmod
+  perf tweak on top of the APFS filtered-clone EACCES fix: `copy_metadata_apfs` no
+  longer issues a redundant second `chmod` for already-writable (working-tree) sources,
+  keeping the widen+restore only for read-only `0o444` Git objects.
+
 ## [v0.0.10-6] - 2026-06-24
 
 ### Fixed

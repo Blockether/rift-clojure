@@ -37,7 +37,7 @@ jobs:
       # sync with deploy.yml's RIFT_REF.
       - name: Pin rift source ref
         shell: bash
-        run: echo "RIFT_REF=v0.0.10-6" >> "$GITHUB_ENV"
+        run: echo "RIFT_REF=v0.0.10-7" >> "$GITHUB_ENV"
 
       - name: Checkout rift source (${{ env.RIFT_REF }})
         uses: actions/checkout@v6
