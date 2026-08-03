@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-9] - 2026-08-03
+
+### Added
+- `rift/excluded` — the paths `create` left out of a workspace, relative to its
+  root, read from the clone's `.rift` marker. A filtered clone omits regenerable
+  artifact trees and whatever the source repository ignores; consumers used to
+  mirror those rules and drift from them. Returns `[]` for workspaces created
+  before rift `v0.0.10-9`.
+
+### Changed
+- Vendor rift native from Blockether/rift `v0.0.10-9`: a git-**tracked**
+  `dist/`, `build/`, or `target/` is no longer dropped from a clone (the index
+  now beats the built-in artifact list), and `create` records what it excluded
+  in the workspace marker.
+
 ## [v0.0.10-8] - 2026-08-03
 
 ### Changed
@@ -123,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ancestors` / `gc`. Native libraries built per-platform by CI and bundled
   into the published jar. Version tracks the vendored rift release 1:1.
 
-[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-8...HEAD
+[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-9...HEAD
+[v0.0.10-9]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-9
 [v0.0.10-8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-8
 [v0.0.10-7]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-7
 [v0.0.8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.8

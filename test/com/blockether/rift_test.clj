@@ -45,7 +45,7 @@
             (rift/list {:of (str dir) :database (str db2)}))))))
 
 (deftest roundtrip
-  (testing "real rift: init -> create -> list -> ancestors -> remove -> gc"
+  (testing "real rift: init -> create -> list -> ancestors -> excluded -> remove -> gc"
     (let [src (temp-dir "rift-src")
           db  (io/file (temp-dir "rift-reg") "registry.sqlite")]
       ;; A real git repo so rift create yields a detached-HEAD CoW copy.
@@ -66,6 +66,8 @@
           "the new workspace shows up as a real child")
         (is (vector? (rift/ancestors {:of ws :database (str db)}))
           "ancestors returns a vector for the created workspace")
+        (is (vector? (rift/excluded {:of ws :database (str db)}))
+          "excluded returns the paths create left out of the workspace")
         (rift/remove! {:at ws :database (str db)})
         (is (vector? (rift/gc {:database (str db)})) "gc returns collected paths")))))
 

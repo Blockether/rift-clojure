@@ -370,6 +370,20 @@
   ([{:keys [of database]}]
    (vec (call* (add-db {:command "ancestors" :of (s (or of (here)))} database)))))
 
+(defn excluded
+  "List the paths `create` left out of the workspace at `:of` (default: current
+   dir), relative to its root, as recorded in the workspace's `.rift` marker.
+
+   A filtered clone omits regenerable artifact trees and whatever the source
+   repository ignores, so a consumer must not read their absence as a deletion.
+   Ask the workspace instead of reimplementing rift's rules. Workspaces created
+   before rift v0.0.10-9 have no record and return `[]`.
+
+   Returns a vector of paths. Options: `:of`, `:database`."
+  ([] (excluded {}))
+  ([{:keys [of database]}]
+   (vec (call* (add-db {:command "excluded" :of (s (or of (here)))} database)))))
+
 (defn gc
   "Physically delete trashed storage and prune missing registry entries.
    Returns a vector of collected paths. Options: `:database`."
