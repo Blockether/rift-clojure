@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.0.10-10] - 2026-08-03
 
+### Changed
+- release: 0.0.10-10 — name the mechanism that made a workspace
+- ci: build the native from the rift source that reports a clone's mechanism
+- test: let the pinned native decide how strictly kind is asserted
+- feat: report the mechanism that made a workspace
+- release: update version files for v0.0.10-9
+
+
+## [v0.0.10-10] - 2026-08-03
+
 ### Added
 - `rift/create-detailed` — like `create`, but returns `{:path :kind}` where
   `:kind` is the mechanism that actually made the workspace: `:btrfs`,
@@ -161,7 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ancestors` / `gc`. Native libraries built per-platform by CI and bundled
   into the published jar. Version tracks the vendored rift release 1:1.
 
-[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-9...HEAD
+[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-10...HEAD
 [v0.0.10-9]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-9
 [v0.0.10-8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-8
 [v0.0.10-7]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-7
@@ -173,3 +183,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.0.10-4]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-4
 [v0.0.10-5]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-5
 [v0.0.10-6]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-6
+[v0.0.10-10]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-10
