@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.0.10-8] - 2026-08-03
 
 ### Changed
+- release: 0.0.10-8 — vendor gitignore-aware rift clones (build from Blockether/rift v0.0.10-8)
+- release: 0.0.10-7 — vendor rift conditional-chmod perf (build from Blockether/rift v0.0.10-7)
+- release: update version files for v0.0.10-6
+
+
+## [v0.0.10-8] - 2026-08-03
+
+### Changed
 - Vendor rift native from Blockether/rift `v0.0.10-8`, which makes repository
   clones gitignore-aware: `CopyFilter` now carries a `RepositoryIgnore` built
   from the source repo, and ignored entries are pruned inside
