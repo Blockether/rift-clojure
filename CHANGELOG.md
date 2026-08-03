@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-8] - 2026-08-02
+
+### Changed
+- Vendor rift native from Blockether/rift `v0.0.10-8`, which makes repository
+  clones gitignore-aware: `CopyFilter` now carries a `RepositoryIgnore` built
+  from the source repo, and ignored entries are pruned inside
+  `WalkDir::filter_entry`, so an ignored directory costs one check instead of
+  one clone per file. Cloning a real 20k-entry repository drops from ~3.6s to
+  ~0.36s (10x). Force-added paths in the index and `.git` itself are never
+  filtered, so a fresh clone's `git status` matches the source's.
+
 ## [v0.0.10-7] - 2026-07-22
 
 ### Changed
@@ -104,7 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ancestors` / `gc`. Native libraries built per-platform by CI and bundled
   into the published jar. Version tracks the vendored rift release 1:1.
 
-[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-6...HEAD
+[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-8...HEAD
+[v0.0.10-8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-8
+[v0.0.10-7]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-7
 [v0.0.8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.8
 [v0.0.10]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10
 [v0.0.10-1]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-1
