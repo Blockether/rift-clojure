@@ -9,9 +9,10 @@ permissions:
 
 env:
   # Wrapper patch releases build the vendored native source from the rift ref
-  # they wrap. Source = Blockether/rift (public fork); v0.0.10-9 keeps
-  # git-tracked artifact trees in a clone and records what it excluded.
-  RIFT_REF: v0.0.10-9
+  # they wrap. Source = Blockether/rift (public fork); this commit keeps
+  # git-tracked artifact trees in a clone, records what it excluded, and reports
+  # the mechanism that made the clone (`create-detailed`'s `:kind`).
+  RIFT_REF: 0d10e96485c85bafc45bd9706e543448539c34b3
 
 jobs:
   # ---------------------------------------------------------------------------

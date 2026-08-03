@@ -31,13 +31,15 @@ jobs:
       - uses: actions/checkout@v6
 
       # Pin the rift Rust source ref. clj-rift's own version (resources/VERSION,
-      # e.g. 0.0.10-8) is INDEPENDENT of the rift source tag. We build the native
+      # e.g. 0.0.10-8) is INDEPENDENT of the rift source ref. We build the native
       # from Blockether/rift (the org fork that carries the APFS filtered-clone
-      # EACCES fix and the gitignore-aware clone filter); it is public, so
-      # actions/checkout needs no token. Keep in sync with deploy.yml's RIFT_REF.
+      # EACCES fix, the gitignore-aware clone filter and the reported clone
+      # mechanism); it is public, so actions/checkout needs no token. A commit is
+      # as immutable as a tag and says exactly which source this native is.
+      # Keep in sync with deploy.yml's RIFT_REF.
       - name: Pin rift source ref
         shell: bash
-        run: echo "RIFT_REF=v0.0.10-9" >> "$GITHUB_ENV"
+        run: echo "RIFT_REF=0d10e96485c85bafc45bd9706e543448539c34b3" >> "$GITHUB_ENV"
 
       - name: Checkout rift source (${{ env.RIFT_REF }})
         uses: actions/checkout@v6

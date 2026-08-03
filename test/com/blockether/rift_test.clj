@@ -141,22 +141,19 @@
         (println "  ✓ real rift workspace kind:" kind "at:" path)
         (is (string? path) "create-detailed returns the workspace path")
         (is (.exists (io/file path)) "the reported path really exists")
-        ;; `:kind` comes from the native library, whose rift source ref CI pins.
-        ;; A native older than rift's kind reporting simply omits the field, and
-        ;; the binding must say nil rather than invent a label; once the pin
-        ;; carries it, everything below asserts for real.
-        (is (or (nil? kind) (contains? #{:btrfs :reflink :apfs :worktree :copy} kind))
-          "kind is nil (older native) or one of rift's mechanisms, decoded to a keyword")
-        (when kind
-          ;; Cross-check the label against the filesystem: only the Git-worktree
-          ;; fallback leaves a `.git` FILE (a gitdir pointer); every copy-on-write
-          ;; mechanism gives the clone its own `.git` DIRECTORY.
-          (let [dot-git (io/file path ".git")]
-            (if (= :worktree kind)
-              (is (.isFile dot-git)
-                "a workspace reported as :worktree really is a linked git worktree")
-              (is (.isDirectory dot-git)
-                "a copy-on-write workspace owns its .git directory"))))
+        ;; `:kind` comes from the native library, whose rift source commit CI
+        ;; pins — that commit reports the mechanism, so nil is a real failure.
+        (is (contains? #{:btrfs :reflink :apfs :worktree :copy} kind)
+          "kind is one of rift's mechanisms, decoded to a keyword")
+        ;; Cross-check the label against the filesystem: only the Git-worktree
+        ;; fallback leaves a `.git` FILE (a gitdir pointer); every copy-on-write
+        ;; mechanism gives the clone its own `.git` DIRECTORY.
+        (let [dot-git (io/file path ".git")]
+          (if (= :worktree kind)
+            (is (.isFile dot-git)
+              "a workspace reported as :worktree really is a linked git worktree")
+            (is (.isDirectory dot-git)
+              "a copy-on-write workspace owns its .git directory")))
         (rift/remove! {:at path :database (str db)}))
 
       ;; The plain `create` contract is unchanged: a bare path string.
