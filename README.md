@@ -45,6 +45,18 @@ Run the JVM with native access enabled (else the linker refuses to load the lib)
 (rift/gc)                                            ; delete trashed storage
 ```
 
+`create-detailed` returns the same path plus the mechanism that produced the
+workspace, so a caller can label it truthfully:
+
+```clojure
+(rift/create-detailed {:from "/repo" :name "fix"})
+;; => {:path "/repo-fix" :kind :apfs}
+```
+
+`:kind` is `:btrfs`, `:reflink`, `:apfs`, `:worktree` (the linked Git worktree
+rift falls back to where the filesystem cannot copy on write) or `:copy`; it is
+`nil` against a native library older than rift `v0.0.11`.
+
 Every fn takes an optional `:database` (rift's SQLite registry). Set a default
 once instead of repeating it:
 

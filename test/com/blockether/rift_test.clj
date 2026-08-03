@@ -126,3 +126,36 @@
               (when-let [x (not-empty (System/getenv "XDG_DATA_HOME"))]
                 (str/includes? p x)))
           "Linux uses $XDG_DATA_HOME or ~/.local/share")))))
+
+(deftest create-reports-the-mechanism
+  (testing "real rift: create-detailed names how the workspace was made, and the label matches the disk"
+    (let [src (temp-dir "rift-kind-src")
+          db  (io/file (temp-dir "rift-kind-reg") "registry.sqlite")]
+      (sh/sh "git" "init" "-q" :dir src)
+      (spit (io/file src "README.md") "hello rift\n")
+      (sh/sh "git" "add" "-A" :dir src)
+      (sh/sh "git" "-c" "user.email=t@t" "-c" "user.name=t" "commit" "-qm" "init" :dir src)
+      (rift/init {:at (str src) :database (str db)})
+
+      (let [{:keys [path kind]} (rift/create-detailed {:from (str src) :name "kind" :database (str db)})]
+        (println "  ✓ real rift workspace kind:" kind "at:" path)
+        (is (string? path) "create-detailed returns the workspace path")
+        (is (.exists (io/file path)) "the reported path really exists")
+        (is (contains? #{:btrfs :reflink :apfs :worktree :copy} kind)
+          "kind is one of rift's mechanisms, decoded to a keyword")
+        ;; Cross-check the label against the filesystem: only the Git-worktree
+        ;; fallback leaves a `.git` FILE (a gitdir pointer); every copy-on-write
+        ;; mechanism gives the clone its own `.git` DIRECTORY.
+        (let [dot-git (io/file path ".git")]
+          (if (= :worktree kind)
+            (is (.isFile dot-git)
+              "a workspace reported as :worktree really is a linked git worktree")
+            (is (.isDirectory dot-git)
+              "a copy-on-write workspace owns its .git directory")))
+        (rift/remove! {:at path :database (str db)}))
+
+      ;; The plain `create` contract is unchanged: a bare path string.
+      (let [ws (rift/create {:from (str src) :name "plain" :database (str db)})]
+        (is (string? ws) "create still returns just the path")
+        (rift/remove! {:at ws :database (str db)}))
+      (rift/gc {:database (str db)}))))

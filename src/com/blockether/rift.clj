@@ -208,20 +208,26 @@
 ;; Protocol
 ;; ---------------------------------------------------------------------------
 
-(defn- call*
-  "Run one rift command map, returning the reply `:value` (a path string, a
-   vector of path strings, or nil). Throws `ex-info` with
-   `{:type :rift/error :code .. :path ..}` on an error reply."
+(defn- reply*
+  "Run one rift command map and return the whole decoded reply map. Throws
+   `ex-info` with `{:type :rift/error :code .. :path ..}` on an error reply."
   [request]
   (let [reply (json/read-json (invoke-raw (json/write-json-str request)) :key-fn keyword)]
     (case (:status reply)
-      "ok"    (:value reply)
+      "ok"    reply
       "error" (let [{:keys [code message path]} (:error reply)]
                 (throw (ex-info (or message "rift error")
                                 {:type :rift/error :code code :path path
                                  :command (:command request)})))
       (throw (ex-info "Unexpected rift response shape"
                       {:type :rift/protocol :reply reply})))))
+
+(defn- call*
+  "Run one rift command map, returning the reply `:value` (a path string, a
+   vector of path strings, or nil). Throws `ex-info` with
+   `{:type :rift/error :code .. :path ..}` on an error reply."
+  [request]
+  (:value (reply* request)))
 
 (defn- s [x] (when (some? x) (str x)))
 
@@ -329,18 +335,37 @@
    (call* (add-db {:command "init" :at (s (or at (here)))} database))
    nil))
 
+(defn- create-request [{:keys [from name into database]}]
+  (-> {:command "create" :from (s (or from (here)))}
+      (cond-> name (assoc :name (s name))
+              into (assoc :into (s into)))
+      (add-db database)))
+
+(defn create-detailed
+  "Create a copy-on-write workspace like `create`, and also report how it was
+   made: `{:path <string> :kind <keyword>}`.
+
+   `:kind` is the mechanism rift actually used — `:btrfs` (subvolume snapshot),
+   `:reflink`, `:apfs` (clonefile), `:worktree` (the linked Git worktree rift
+   falls back to where the filesystem cannot copy on write) or `:copy` — and is
+   nil against a native library that predates kind reporting.
+
+   Options: `:from`, `:name`, `:into` (parent storage dir), `:database`."
+  ([] (create-detailed {}))
+  ([opts]
+   (let [reply (reply* (create-request opts))]
+     {:path (:value reply)
+      :kind (when-let [kind (:kind reply)] (keyword kind))})))
+
 (defn create
   "Create a copy-on-write workspace from `:from` (default: current dir) and
    return the new workspace path (string). When `:from` is a git repo the new
    workspace has a detached HEAD with index + working-tree state retained.
+   `create-detailed` returns the same path plus the mechanism that made it.
 
    Options: `:from`, `:name`, `:into` (parent storage dir), `:database`."
   ([] (create {}))
-  ([{:keys [from name into database]}]
-   (call* (-> {:command "create" :from (s (or from (here)))}
-              (cond-> name (assoc :name (s name))
-                      into (assoc :into (s into)))
-              (add-db database)))))
+  ([opts] (call* (create-request opts))))
 
 (defn remove!
   "Remove a created workspace at `:at` (default: current dir). With `:all true`
