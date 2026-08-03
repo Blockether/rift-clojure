@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-10] - 2026-08-03
+
 ### Added
 - `rift/create-detailed` — like `create`, but returns `{:path :kind}` where
   `:kind` is the mechanism that actually made the workspace: `:btrfs`,
   `:reflink`, `:apfs`, `:worktree` (rift's linked-Git-worktree fallback for
   filesystems without copy-on-write) or `:copy`. Callers that label a workspace
   could only name rift, never how it was made. `nil` against an older native.
+
+### Changed
+- Vendor the rift source that reports a clone's mechanism. Every platform's
+  binding test now demands a `:kind` and cross-checks it against the disk: a
+  `:worktree` clone owns a `.git` FILE, a copy-on-write clone a `.git`
+  DIRECTORY.
 
 ## [v0.0.10-9] - 2026-08-03
 
