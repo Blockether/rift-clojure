@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.0.10-9] - 2026-08-03
 
+### Changed
+- release: 0.0.10-9 — expose what a clone excluded
+- release: update version files for v0.0.10-8
+- docs: correct v0.0.10-8 changelog date
+
+
+## [v0.0.10-9] - 2026-08-03
+
 ### Added
 - `rift/excluded` — the paths `create` left out of a workspace, relative to its
   root, read from the clone's `.rift` marker. A filtered clone omits regenerable
