@@ -11,8 +11,10 @@ It loads rift's native `librift_ffi` **in-process** through the JDK Foreign
 Function & Memory API (`java.lang.foreign`) — no subprocess, no JNI. Same shared
 library rift ships for Bun/Node, called from the JVM.
 
-> ⚠️ rift is **experimental**. This is a **vendored binding**: its version tracks
-> the rift release 1:1 — `com.blockether/rift X.Y.Z` targets `rift vX.Y.Z`.
+> ⚠️ rift is **experimental**. This is a **vendored binding**: its version IS the
+> rift version — `com.blockether/rift X.Y.Z` bundles the native built from
+> [`Blockether/rift`](https://github.com/Blockether/rift) tag `vX.Y.Z`
+> (`resources/VERSION` = that tag, `RIFT_VERSION` in rift itself).
 
 ## Install
 
@@ -38,10 +40,11 @@ Run the JVM with native access enabled (else the linker refuses to load the lib)
 
 (rift/init   {:at "/repo"})                         ; register a rift root
 (def ws (rift/create {:from "/repo" :name "fix"}))  ; => CoW copy path
+(rift/clean!    {:at ws})                           ; => drop pending changes
 (rift/list      {:of "/repo"})                      ; => direct children
 (rift/ancestors {:of ws})                           ; => parents, nearest first
-(rift/excluded  {:of ws})                           ; => paths create left out
-(rift/remove!   {:at ws})                            ; trash it
+(rift/excluded  {:of ws})                           ; => paths create/clean omitted
+(rift/remove!   {:at ws})                           ; trash it
 (rift/gc)                                            ; delete trashed storage
 ```
 
@@ -56,6 +59,12 @@ workspace, so a caller can label it truthfully:
 `:kind` is `:btrfs`, `:reflink`, `:apfs`, `:worktree` (the linked Git worktree
 rift falls back to where the filesystem cannot copy on write) or `:copy`; it is
 `nil` against a native library older than rift `v0.0.11`.
+
+`clean!` is destructive only inside the managed workspace: it detaches `HEAD` at
+`:commit` (default: that workspace's own `HEAD`), resets the real index and
+tracked tree, removes untracked and ignored paths, and records removed roots in
+Rift's exclusions. The source workspace is untouched, and a workspace with no Git
+repository is left exactly as it was copied.
 
 Every fn takes an optional `:database` (rift's SQLite registry). Set a default
 once instead of repeating it:

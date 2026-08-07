@@ -99,22 +99,23 @@
 (defn- native-artifact [platform]
   (str "rift-native-" platform))
 
-(defn- resolve-native-jar ^Path [version platform]
+(defn- resolve-native-jar
   "Resolve the per-platform native jar through `clojure.tools.deps` — the same
    resolver the `clojure` CLI uses, so configured Maven repositories, mirrors and
    `~/.m2/settings.xml` are honoured (no hand-rolled HTTP to a hardcoded repo).
    Returns the jar's path in the local Maven repository. tools.deps is loaded via
    `requiring-resolve` so it is only touched on this runtime download path."
+  ^Path [version platform]
   (let [lib          (symbol "com.blockether" (native-artifact platform))
         create-basis (or (requiring-resolve 'clojure.tools.deps/create-basis)
                          (throw (ex-info "org.clojure/tools.deps is not on the classpath; cannot resolve the rift native artifact. Add com.blockether/<artifact>, set RIFT_NATIVE_PATH, or add tools.deps."
-                                  {:lib lib})))
+                                         {:lib lib})))
         basis        (create-basis {:project nil :extra {:deps {lib {:mvn/version version}}}})
         path         (-> basis :libs (get lib) :paths first)]
     (when-not path
       (throw (ex-info (str "Could not resolve " lib " " version
-                        " via Clojure's dependency resolver. Check your Maven repositories / mirrors.")
-               {:lib lib :version version})))
+                           " via Clojure's dependency resolver. Check your Maven repositories / mirrors.")
+                      {:lib lib :version version})))
     (.toPath (io/file path))))
 
 (defn- extract-native! ^Path [^Path jar-path res ^Path dest]
@@ -367,6 +368,25 @@
   ([] (create {}))
   ([opts] (call* (create-request opts))))
 
+(defn clean!
+  "Hand the managed workspace at `:at` over without the changes that were pending
+   in it.
+
+   The operation detaches HEAD at `:commit` (default: the workspace's own `HEAD`),
+   resets the real index and tracked files, removes every untracked and ignored
+   path, and preserves Rift's marker. The source workspace keeps every pending
+   change it had.
+
+   A workspace that is not a Git repository has no committed state to restore to,
+   so cleaning it changes nothing and succeeds.
+
+   Returns the cleaned workspace path. Options: `:at`, `:commit`, `:database`."
+  ([] (clean! {}))
+  ([{:keys [at commit database]}]
+   (call* (add-db (cond-> {:command "clean" :at (s (or at (here)))}
+                    commit (assoc :commit (s commit)))
+                  database))))
+
 (defn remove!
   "Remove a created workspace at `:at` (default: current dir). With `:all true`
    removes the whole created subtree and returns a vector of removed paths;
@@ -396,13 +416,12 @@
    (vec (call* (add-db {:command "ancestors" :of (s (or of (here)))} database)))))
 
 (defn excluded
-  "List the paths `create` left out of the workspace at `:of` (default: current
-   dir), relative to its root, as recorded in the workspace's `.rift` marker.
+  "List the paths `create` or `clean!` left out of the workspace at `:of`
+   (default: current dir), relative to its root, as recorded in `.rift`.
 
-   A filtered clone omits regenerable artifact trees and whatever the source
-   repository ignores, so a consumer must not read their absence as a deletion.
-   Ask the workspace instead of reimplementing rift's rules. Workspaces created
-   before rift v0.0.10-9 have no record and return `[]`.
+   Filtered clone omissions and paths removed by clean are both backend facts;
+   consumers must not read their absence as a deletion. Ask the workspace instead
+   of reimplementing Rift's rules. Older markers with no records return `[]`.
 
    Returns a vector of paths. Options: `:of`, `:database`."
   ([] (excluded {}))

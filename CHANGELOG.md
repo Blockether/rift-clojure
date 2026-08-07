@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `rift/clean!` hands a managed workspace over without the changes that were
+  pending in it: it resets the detached `HEAD`, real index, and worktree to
+  `:commit` (default `HEAD`), removes untracked and ignored state while preserving
+  `.rift`, and records removed paths in `rift/excluded`. A workspace with no Git
+  repository is left exactly as it was copied.
+
+### Changed
+- The binding is pinned to the rift source by VERSION, not by commit: CI and the
+  release build check out `Blockether/rift` tag `v$(cat resources/VERSION)`, so a
+  published `com.blockether/rift X.Y.Z` always wraps `rift vX.Y.Z`.
+
 ## [v0.0.10-10] - 2026-08-03
 
 ### Changed
