@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10-11] - 2026-08-07
+
+### Changed
+- build: pin the rift source by version, not by commit
+- feat: hand a managed workspace over clean
+- release: update version files for v0.0.10-10
+
+
 ### Added
 - `rift/clean!` hands a managed workspace over without the changes that were
   pending in it: it resets the detached `HEAD`, real index, and worktree to
@@ -183,7 +191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ancestors` / `gc`. Native libraries built per-platform by CI and bundled
   into the published jar. Version tracks the vendored rift release 1:1.
 
-[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-10...HEAD
+[Unreleased]: https://github.com/Blockether/rift-clojure/compare/v0.0.10-11...HEAD
 [v0.0.10-9]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-9
 [v0.0.10-8]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-8
 [v0.0.10-7]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-7
@@ -196,3 +204,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.0.10-5]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-5
 [v0.0.10-6]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-6
 [v0.0.10-10]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-10
+[v0.0.10-11]: https://github.com/Blockether/rift-clojure/releases/tag/v0.0.10-11

@@ -19,13 +19,13 @@ library rift ships for Bun/Node, called from the JVM.
 ## Install
 
 ```clojure
-com.blockether/rift {:mvn/version "0.0.10-10"}
+com.blockether/rift {:mvn/version "0.0.10-11"}
 ```
 
 Native loading is automatic: `com.blockether/rift` first checks `RIFT_NATIVE_PATH`, then any
 classpath native jar, then downloads `com.blockether/rift-native-<platform>` from
 Clojars into `~/.cache/clj-rift`. You can also add the native jar explicitly, e.g.
-`com.blockether/rift-native-linux-x64 {:mvn/version "0.0.10-10"}`.
+`com.blockether/rift-native-linux-x64 {:mvn/version "0.0.10-11"}`.
 
 Run the JVM with native access enabled (else the linker refuses to load the lib):
 
