@@ -7,13 +7,6 @@ on:
 permissions:
   contents: write
 
-env:
-  # Wrapper patch releases build the vendored native source from the rift ref
-  # they wrap. Source = Blockether/rift (public fork); this commit keeps
-  # git-tracked artifact trees in a clone, records what it excluded, and reports
-  # the mechanism that made the clone (`create-detailed`'s `:kind`).
-  RIFT_REF: 0d10e96485c85bafc45bd9706e543448539c34b3
-
 jobs:
   # ---------------------------------------------------------------------------
   # Build librift_ffi for every platform AND run the Clojure binding test
@@ -45,11 +38,17 @@ jobs:
       - name: Checkout rift-clojure
         uses: actions/checkout@v6
 
-      - name: Checkout rift source (${{ env.RIFT_REF }})
+      # The release tag IS the rift version: resources/VERSION at this tag names
+      # the Blockether/rift tag whose source becomes the vendored native.
+      - name: Resolve RIFT_VERSION
+        shell: bash
+        run: echo "RIFT_VERSION=$(tr -d '[:space:]' < resources/VERSION)" >> "$GITHUB_ENV"
+
+      - name: Checkout rift source (v${{ env.RIFT_VERSION }})
         uses: actions/checkout@v6
         with:
           repository: Blockether/rift
-          ref: ${{ env.RIFT_REF }}
+          ref: v${{ env.RIFT_VERSION }}
           path: rift-src
 
       - name: Install cmake (Linux)
@@ -75,7 +74,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: rift-src
-          key: ${{ matrix.target }}-${{ env.RIFT_REF }}
+          key: ${{ matrix.target }}-${{ env.RIFT_VERSION }}
 
       - name: Build rift-ffi (release, cdylib)
         working-directory: rift-src

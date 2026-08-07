@@ -30,22 +30,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Pin the rift Rust source ref. clj-rift's own version (resources/VERSION,
-      # e.g. 0.0.10-8) is INDEPENDENT of the rift source ref. We build the native
-      # from Blockether/rift (the org fork that carries the APFS filtered-clone
-      # EACCES fix, the gitignore-aware clone filter and the reported clone
-      # mechanism); it is public, so actions/checkout needs no token. A commit is
-      # as immutable as a tag and says exactly which source this native is.
-      # Keep in sync with deploy.yml's RIFT_REF.
-      - name: Pin rift source ref
+      # rift-clojure and the rift Rust source it wraps share ONE version:
+      # RIFT_VERSION. resources/VERSION holds it, this build compiles the native
+      # from the matching Blockether/rift tag, and the Clojars coordinate carries
+      # the same number — so a jar names exactly the rift inside it. Blockether/rift
+      # is public, so actions/checkout needs no token.
+      - name: Resolve RIFT_VERSION
         shell: bash
-        run: echo "RIFT_REF=0d10e96485c85bafc45bd9706e543448539c34b3" >> "$GITHUB_ENV"
+        run: echo "RIFT_VERSION=$(tr -d '[:space:]' < resources/VERSION)" >> "$GITHUB_ENV"
 
-      - name: Checkout rift source (${{ env.RIFT_REF }})
+      - name: Checkout rift source (v${{ env.RIFT_VERSION }})
         uses: actions/checkout@v6
         with:
           repository: Blockether/rift
-          ref: ${{ env.RIFT_REF }}
+          ref: v${{ env.RIFT_VERSION }}
           path: rift-src
 
       - name: Install cmake (Linux)
@@ -71,7 +69,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: rift-src
-          key: ${{ matrix.target }}-${{ env.RIFT_REF }}
+          key: ${{ matrix.target }}-${{ env.RIFT_VERSION }}
 
       - name: Build rift-ffi (release, cdylib)
         working-directory: rift-src

@@ -4,19 +4,19 @@
 # per-arch Docker containers (native inside the container — no cross-linker).
 #
 # Usage:
-#   scripts/build-natives.sh [RIFT_REF]      # default ref: contents of VERSION
+#   scripts/build-natives.sh [RIFT_VERSION]  # default: resources/VERSION
 #
 # Requires: rust + cmake (macOS), docker (Linux targets).
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
-ref="${1:-$(tr -d '[:space:]' < "$here/VERSION")}"
+version="${1:-$(tr -d '[:space:]' < "$here/resources/VERSION")}"
+version="${version#v}"
 src="$(mktemp -d)/rift"
 prebuilds="$here/resources/prebuilds"
 
-echo ">> Cloning anomalyco/rift @ ${ref}"
-git clone --depth 1 --branch "v${ref#v}" https://github.com/anomalyco/rift.git "$src" 2>/dev/null \
-  || git clone --depth 1 --branch "$ref" https://github.com/anomalyco/rift.git "$src"
+echo ">> Cloning Blockether/rift @ v${version}"
+git clone --depth 1 --branch "v${version}" https://github.com/Blockether/rift.git "$src"
 
 vendor() { # <platform> <built-path> <lib-name>
   mkdir -p "$prebuilds/$1"
